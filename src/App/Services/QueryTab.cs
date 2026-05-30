@@ -1,3 +1,4 @@
+using Lexql.Core.Relational.Sql;
 using Lexql.Core.Results;
 
 namespace Lexql.App.Services;
@@ -15,6 +16,8 @@ public sealed class QueryTab
     public int RowLimit { get; set; } = 1000;
 
     public ResultGridModel? Grid { get; set; }
+
+    public EditabilityInfo? Editability { get; set; }
 
     public string? Status { get; set; }
 

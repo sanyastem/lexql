@@ -66,11 +66,13 @@ public sealed class WorkspaceState
         try
         {
             var connection = await _provider.ConnectAsync(profile, CancellationToken.None);
+            profile.Settings.TryGetValue("database", out var database);
             var server = new ServerConnection
             {
                 Id = Guid.NewGuid().ToString("N"),
                 Name = profile.Name,
                 Connection = connection,
+                DefaultNamespace = string.IsNullOrWhiteSpace(database) ? null : database,
                 Roots = await connection.ObjectExplorer.GetRootsAsync(CancellationToken.None),
             };
 

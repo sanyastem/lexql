@@ -9,8 +9,6 @@ public enum CompletionContextKind
     AliasMember,
 }
 
-public sealed record TableReference(string? Schema, string Table, string? Alias);
-
 public sealed record CompletionContext(
     CompletionContextKind Kind,
     string? Alias,
@@ -56,7 +54,7 @@ public static class CompletionContextAnalyzer
             .OrderBy(t => t.Start)
             .ToList();
 
-        var tables = ParseTableReferences(tokens);
+        var tables = SqlTableReferences.Parse(tokens);
 
         var lastIndex = -1;
         for (var i = 0; i < tokens.Count; i++)
@@ -147,88 +145,6 @@ public static class CompletionContextAnalyzer
 
         alias = null;
         return false;
-    }
-
-    private static IReadOnlyList<TableReference> ParseTableReferences(IReadOnlyList<SqlToken> tokens)
-    {
-        var references = new List<TableReference>();
-
-        for (var i = 0; i < tokens.Count; i++)
-        {
-            if (!FromClauseKeywords.Contains(tokens[i].Symbol))
-            {
-                continue;
-            }
-
-            var j = i + 1;
-            while (j < tokens.Count)
-            {
-                if (!TryParseTableSpec(tokens, j, out var reference, out var next))
-                {
-                    break;
-                }
-
-                references.Add(reference);
-                j = next;
-
-                if (j < tokens.Count && tokens[j].Symbol == "COMMA")
-                {
-                    j++;
-                    continue;
-                }
-
-                break;
-            }
-
-            i = j - 1;
-        }
-
-        return references;
-    }
-
-    private static bool TryParseTableSpec(
-        IReadOnlyList<SqlToken> tokens, int index, out TableReference reference, out int next)
-    {
-        reference = default!;
-        next = index;
-
-        if (index >= tokens.Count || !IsIdentifier(tokens[index]))
-        {
-            return false;
-        }
-
-        string? schema = null;
-        var table = tokens[index].Text;
-        var k = index + 1;
-
-        if (k < tokens.Count && tokens[k].Symbol == "DOT_ID")
-        {
-            schema = table;
-            table = tokens[k].Text.TrimStart('.');
-            k += 1;
-        }
-        else if (k + 1 < tokens.Count && tokens[k].Symbol == "DOT" && IsIdentifier(tokens[k + 1]))
-        {
-            schema = table;
-            table = tokens[k + 1].Text;
-            k += 2;
-        }
-
-        string? alias = null;
-        if (k < tokens.Count && tokens[k].Symbol == "AS" && k + 1 < tokens.Count && IsIdentifier(tokens[k + 1]))
-        {
-            alias = tokens[k + 1].Text;
-            k += 2;
-        }
-        else if (k < tokens.Count && IsIdentifier(tokens[k]))
-        {
-            alias = tokens[k].Text;
-            k += 1;
-        }
-
-        reference = new TableReference(schema, table, alias);
-        next = k;
-        return true;
     }
 
     private static bool IsIdentifier(SqlToken token) => token.Symbol == "ID";

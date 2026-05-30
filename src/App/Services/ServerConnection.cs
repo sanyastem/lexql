@@ -10,5 +10,7 @@ public sealed class ServerConnection
 
     public required IDatabaseConnection Connection { get; init; }
 
+    public string? DefaultNamespace { get; init; }
+
     public IReadOnlyList<DatabaseObjectNode> Roots { get; set; } = [];
 }

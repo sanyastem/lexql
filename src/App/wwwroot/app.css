@@ -328,3 +328,7 @@ h1:focus {
 .btn-secondary { background: #ddd; border: none; border-radius: 4px; padding: 0.4rem 0.9rem; cursor: pointer; }
 .connect-form { border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.6rem; margin-bottom: 0.5rem; background: #fafbfc; }
 .small { font-size: 0.72rem; }
+
+.edit-badge { font-size: 0.78rem; margin: 0 0 0.4rem; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; }
+.edit-badge.editable { background: #e6f4ea; color: #218838; }
+.edit-badge.readonly { background: #f1f1f1; color: #888; }

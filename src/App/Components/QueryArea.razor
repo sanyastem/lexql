@@ -53,6 +53,14 @@
         <section class="panel result-panel">
             @if (active.Grid is not null)
             {
+                @if (active.Editability is { IsEditable: true } editable)
+                {
+                    <p class="edit-badge editable">✎ Editable — key: @string.Join(", ", editable.KeyColumns)</p>
+                }
+                else if (active.Editability is { } readOnly)
+                {
+                    <p class="edit-badge readonly">Read-only — @readOnly.Reason</p>
+                }
                 <ResultGrid Model="active.Grid" />
             }
             else
@@ -106,6 +114,32 @@
         return items.Select(i => new CompletionEntry(i.Label, i.Kind.ToString(), i.Detail)).ToList();
     }
 
+    private static async Task<EditabilityInfo?> AnalyzeEditabilityAsync(
+        ServerConnection connection, string sql, ResultGridModel grid)
+    {
+        if (connection.DefaultNamespace is null)
+        {
+            return null;
+        }
+
+        var schemaReader = connection.Connection.GetService<IRelationalSchemaReader>();
+        if (schemaReader is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var schema = await schemaReader.LoadAsync(connection.DefaultNamespace, CancellationToken.None);
+            var columns = grid.Columns.Select(c => c.Name).ToList();
+            return EditableResultAnalyzer.Analyze(sql, columns, schema);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
     private async Task<string> ResolveSqlAsync()
     {
         if (_editor is null)
@@ -148,6 +182,7 @@
         tab.Error = null;
         tab.Status = null;
         tab.Grid = null;
+        tab.Editability = null;
         try
         {
             var request = new QueryRequest(sql, RowLimit: tab.RowLimit);
@@ -158,6 +193,7 @@
             {
                 tab.Grid = await ResultGridBuilder.BuildAsync(resultSet, CancellationToken.None);
                 tab.Status = $"{tab.Grid.Rows.Count} rows in {execution.Elapsed.TotalMilliseconds:F0} ms";
+                tab.Editability = await AnalyzeEditabilityAsync(connection, sql, tab.Grid);
             }
             else
             {
