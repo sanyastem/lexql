@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Core\Lexql.Core.csproj" />
     <ProjectReference Include="..\..\src\Core.Relational\Lexql.Core.Relational.csproj" />
+    <ProjectReference Include="..\..\src\Providers\MySql\Lexql.Providers.MySql.csproj" />
   </ItemGroup>
 
 </Project>

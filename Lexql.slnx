@@ -9,6 +9,10 @@
   <Folder Name="/src/Core/">
     <Project Path="src/Core/Lexql.Core.csproj" />
   </Folder>
+  <Folder Name="/src/Providers/" />
+  <Folder Name="/src/Providers/MySql/">
+    <Project Path="src/Providers/MySql/Lexql.Providers.MySql.csproj" />
+  </Folder>
   <Folder Name="/tests/" />
   <Folder Name="/tests/Core.Tests/">
     <Project Path="tests/Core.Tests/Lexql.Core.Tests.csproj" />
