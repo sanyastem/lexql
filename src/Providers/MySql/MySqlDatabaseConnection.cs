@@ -12,6 +12,7 @@ namespace Lexql.Providers.MySql;
 public sealed class MySqlDatabaseConnection : IDatabaseConnection
 {
     private readonly MySqlConnection _connection;
+    private readonly IAsyncDisposable? _tunnel;
     private readonly IRelationalSchemaReader _schemaReader;
     private readonly IRelationalCatalog _catalog;
     private readonly ISqlCompletionProvider _completion;
@@ -20,7 +21,8 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
         IDatabaseProvider provider,
         MySqlConnection connection,
         bool isReadOnly,
-        MySqlQueryExecutorOptions options)
+        MySqlQueryExecutorOptions options,
+        IAsyncDisposable? tunnel = null)
     {
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(connection);
@@ -28,6 +30,7 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
 
         Provider = provider;
         _connection = connection;
+        _tunnel = tunnel;
         IsReadOnly = isReadOnly;
 
         _schemaReader = new CachingSchemaReader(new MySqlSchemaReader(connection));
@@ -55,5 +58,12 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
         ?? _catalog as TService
         ?? _completion as TService;
 
-    public ValueTask DisposeAsync() => _connection.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await _connection.DisposeAsync();
+        if (_tunnel is not null)
+        {
+            await _tunnel.DisposeAsync();
+        }
+    }
 }

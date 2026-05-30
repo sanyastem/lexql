@@ -35,6 +35,19 @@ license. This file satisfies the attribution requirements of those licenses.
 - https://github.com/antlr/grammars-v4/tree/master/sql/mysql
 - NOTE: a copy of the grammar's MIT license text is stored alongside the `.g4` file in `/grammar`.
 
+### SSH.NET
+- License: MIT
+- Use: optional SSH tunnel (local port-forward) for connecting to a MySQL
+  server behind a bastion host.
+- Copyright © Renci and contributors.
+- https://github.com/sshnet/SSH.NET
+
+### System.Security.Cryptography.ProtectedData
+- License: MIT
+- Use: Windows DPAPI wrapping of the local encryption key for stored secrets.
+- Copyright © .NET Foundation and contributors.
+- https://github.com/dotnet/runtime
+
 ### Bogus
 - License: dual MIT / Apache-2.0 (core only; Bogus Premium is NOT used)
 - Use: fake/test data generation.

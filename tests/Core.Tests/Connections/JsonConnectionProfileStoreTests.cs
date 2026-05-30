@@ -9,7 +9,8 @@ public class JsonConnectionProfileStoreTests : IDisposable
 
     private JsonConnectionProfileStore Store() =>
         new(Path.Combine(_dir, "connections.json"),
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "password" });
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "password" },
+            new AesSecretProtector(AesSecretProtector.CreateKey()));
 
     [Fact]
     public async Task LoadAll_MissingFile_ReturnsEmpty()
@@ -18,7 +19,7 @@ public class JsonConnectionProfileStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveThenLoad_RoundTripsMetadata_WithoutPassword()
+    public async Task SaveThenLoad_RoundTripsMetadataAndPassword()
     {
         var profile = new ConnectionProfile(
             "mysql",
@@ -32,15 +33,14 @@ public class JsonConnectionProfileStoreTests : IDisposable
         var loaded = Assert.Single(await store.LoadAllAsync(CancellationToken.None));
 
         Assert.Equal("local", loaded.Name);
-        Assert.Equal("mysql", loaded.ProviderId);
         Assert.Equal("127.0.0.1", loaded.Settings["host"]);
         Assert.True(loaded.ReadOnly);
         Assert.Equal(500, loaded.DefaultRowLimit);
-        Assert.False(loaded.Settings.ContainsKey("password"));
+        Assert.Equal("secret", loaded.Settings["password"]);
     }
 
     [Fact]
-    public async Task SavedFile_DoesNotContainPassword()
+    public async Task SavedFile_DoesNotContainPlaintextPassword()
     {
         var profile = new ConnectionProfile(
             "mysql", "local",

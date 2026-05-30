@@ -22,6 +22,7 @@ public static class MauiProgram
 		builder.Services.AddMauiBlazorWebView();
 
 		builder.Services.AddSingleton<IDatabaseProvider, MySqlDatabaseProvider>();
+		builder.Services.AddSingleton<ISecretProtector>(_ => new AesSecretProtector(KeyStore.GetOrCreateKey()));
 		builder.Services.AddSingleton<IConnectionProfileStore>(sp =>
 		{
 			var provider = sp.GetRequiredService<IDatabaseProvider>();
@@ -30,7 +31,7 @@ public static class MauiProgram
 				.Select(f => f.Key)
 				.ToHashSet(StringComparer.OrdinalIgnoreCase);
 			var path = Path.Combine(FileSystem.AppDataDirectory, "connections.json");
-			return new JsonConnectionProfileStore(path, secretKeys);
+			return new JsonConnectionProfileStore(path, secretKeys, sp.GetRequiredService<ISecretProtector>());
 		});
 		builder.Services.AddSingleton<WorkspaceState>();
 

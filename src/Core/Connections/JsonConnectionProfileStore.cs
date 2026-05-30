@@ -7,15 +7,20 @@ public sealed class JsonConnectionProfileStore : IConnectionProfileStore
 {
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
+    private const string EncryptedPrefix = "enc:";
+
     private readonly string _path;
     private readonly IReadOnlySet<string> _secretKeys;
+    private readonly ISecretProtector _protector;
 
-    public JsonConnectionProfileStore(string path, IReadOnlySet<string> secretKeys)
+    public JsonConnectionProfileStore(string path, IReadOnlySet<string> secretKeys, ISecretProtector protector)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(secretKeys);
+        ArgumentNullException.ThrowIfNull(protector);
         _path = path;
         _secretKeys = secretKeys;
+        _protector = protector;
     }
 
     public async Task<IReadOnlyList<ConnectionProfile>> LoadAllAsync(CancellationToken ct)
@@ -48,18 +53,44 @@ public sealed class JsonConnectionProfileStore : IConnectionProfileStore
     private ProfileDto ToDto(ConnectionProfile profile) => new(
         profile.ProviderId,
         profile.Name,
-        profile.Settings
-            .Where(setting => !_secretKeys.Contains(setting.Key))
-            .ToDictionary(setting => setting.Key, setting => setting.Value),
+        profile.Settings.ToDictionary(setting => setting.Key, setting => Encode(setting.Key, setting.Value)),
         profile.ReadOnly,
         profile.DefaultRowLimit);
 
-    private static ConnectionProfile ToProfile(ProfileDto dto) => new(
+    private ConnectionProfile ToProfile(ProfileDto dto) => new(
         dto.ProviderId,
         dto.Name,
-        dto.Settings ?? new Dictionary<string, string?>(),
+        (dto.Settings ?? new Dictionary<string, string?>())
+            .ToDictionary(setting => setting.Key, setting => Decode(setting.Key, setting.Value)),
         dto.ReadOnly,
         dto.DefaultRowLimit);
+
+    private string? Encode(string key, string? value)
+    {
+        if (value is null || !_secretKeys.Contains(key))
+        {
+            return value;
+        }
+
+        return EncryptedPrefix + _protector.Protect(value);
+    }
+
+    private string? Decode(string key, string? value)
+    {
+        if (value is null || !_secretKeys.Contains(key) || !value.StartsWith(EncryptedPrefix, StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        try
+        {
+            return _protector.Unprotect(value[EncryptedPrefix.Length..]);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
 
     private sealed record ProfileDto(
         string ProviderId,

@@ -12,6 +12,7 @@ public sealed class MySqlConnectionSettings
     public const string PasswordKey = "password";
     public const string DatabaseKey = "database";
     public const string SslModeKey = "sslMode";
+    public const string SslCaKey = "sslCa";
 
     public const int DefaultPort = 3306;
 
@@ -26,6 +27,8 @@ public sealed class MySqlConnectionSettings
     public string? Database { get; init; }
 
     public MySqlSslMode SslMode { get; init; } = MySqlSslMode.Preferred;
+
+    public string? SslCa { get; init; }
 
     public static MySqlConnectionSettings FromProfile(ConnectionProfile profile)
     {
@@ -74,6 +77,7 @@ public sealed class MySqlConnectionSettings
             Password = Read(settings, PasswordKey),
             Database = Read(settings, DatabaseKey),
             SslMode = sslMode,
+            SslCa = Read(settings, SslCaKey),
         };
     }
 
@@ -95,6 +99,11 @@ public sealed class MySqlConnectionSettings
         if (!string.IsNullOrWhiteSpace(Database))
         {
             builder.Database = Database;
+        }
+
+        if (!string.IsNullOrWhiteSpace(SslCa))
+        {
+            builder.SslCa = SslCa;
         }
 
         return builder.ConnectionString;
