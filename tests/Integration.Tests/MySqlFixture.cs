@@ -34,7 +34,8 @@ public abstract class MySqlFixture : IAsyncLifetime
 
     public string Password => "app";
 
-    public string ConnectionString => _container.GetConnectionString();
+    public string ConnectionString =>
+        new MySqlConnectionStringBuilder(_container.GetConnectionString()) { SslMode = MySqlSslMode.None }.ConnectionString;
 
     public string Host => _container.Hostname;
 
@@ -50,6 +51,7 @@ public abstract class MySqlFixture : IAsyncLifetime
             ["user"] = User,
             ["password"] = Password,
             ["database"] = Database,
+            ["sslMode"] = "None",
         });
 
     public async Task InitializeAsync()
