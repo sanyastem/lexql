@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/App/">
+    <Project Path="src/App/Lexql.App.csproj" />
+  </Folder>
+  <Folder Name="/src/Core.Relational/">
+    <Project Path="src/Core.Relational/Lexql.Core.Relational.csproj" />
+  </Folder>
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/Lexql.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/Core.Tests/">
+    <Project Path="tests/Core.Tests/Lexql.Core.Tests.csproj" />
+  </Folder>
+</Solution>
