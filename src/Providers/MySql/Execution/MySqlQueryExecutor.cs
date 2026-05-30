@@ -43,7 +43,23 @@ public sealed class MySqlQueryExecutor : IQueryExecutor
         AddParameters(command, request.Parameters);
 
         var rowLimit = request.RowLimit ?? _options.DefaultRowLimit;
+        var messages = new List<DiagnosticMessage>();
+        void OnInfoMessage(object sender, MySqlInfoMessageEventArgs args)
+        {
+            foreach (var error in args.Errors)
+            {
+                var severity = Convert.ToString(error.Level)?.ToUpperInvariant() switch
+                {
+                    "ERROR" => DiagnosticSeverity.Error,
+                    "WARNING" => DiagnosticSeverity.Warning,
+                    _ => DiagnosticSeverity.Info,
+                };
+                messages.Add(new DiagnosticMessage(severity, $"[{error.ErrorCode}] {error.Message}"));
+            }
+        }
+
         var stopwatch = Stopwatch.StartNew();
+        _connection.InfoMessage += OnInfoMessage;
         try
         {
             await using var reader = await command.ExecuteReaderAsync(ct);
@@ -55,11 +71,16 @@ public sealed class MySqlQueryExecutor : IQueryExecutor
                 ResultSets = result.ResultSets,
                 AffectedCount = result.RecordsAffected >= 0 ? result.RecordsAffected : null,
                 Elapsed = stopwatch.Elapsed,
+                Messages = messages,
             };
         }
         catch (MySqlException ex)
         {
             throw new QueryExecutionException(ex.Message, (int)ex.ErrorCode, ex.SqlState, ex);
+        }
+        finally
+        {
+            _connection.InfoMessage -= OnInfoMessage;
         }
     }
 

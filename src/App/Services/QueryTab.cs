@@ -1,3 +1,4 @@
+using Lexql.Core.Abstractions;
 using Lexql.Core.Relational.Sql;
 using Lexql.Core.Results;
 
@@ -22,4 +23,6 @@ public sealed class QueryTab
     public string? Status { get; set; }
 
     public string? Error { get; set; }
+
+    public IReadOnlyList<DiagnosticMessage> Messages { get; set; } = [];
 }

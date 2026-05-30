@@ -50,6 +50,18 @@
             {
                 <p class="status error">@active.Error</p>
             }
+
+            @if (active.Messages.Count > 0)
+            {
+                <ul class="message-panel">
+                    @foreach (var message in active.Messages)
+                    {
+                        <li class="message @message.Severity.ToString().ToLowerInvariant()">
+                            <span class="message-sev">@message.Severity</span> @message.Text
+                        </li>
+                    }
+                </ul>
+            }
         </section>
 
         <section class="panel result-panel">
@@ -298,10 +310,12 @@
         tab.Status = null;
         tab.Grid = null;
         tab.Editability = null;
+        tab.Messages = [];
         try
         {
             var request = new QueryRequest(sql, RowLimit: tab.RowLimit);
             var execution = await connection.Connection.QueryExecutor.ExecuteAsync(request, CancellationToken.None);
+            tab.Messages = execution.Messages;
 
             var resultSet = execution.ResultSets.FirstOrDefault();
             if (resultSet is not null)
@@ -317,11 +331,22 @@
         }
         catch (QueryExecutionException ex)
         {
-            tab.Error = ex.Message;
+            tab.Error = FormatError(ex);
         }
         finally
         {
             _running = false;
         }
+    }
+
+    private static string FormatError(QueryExecutionException ex)
+    {
+        var prefix = (ex.Code, ex.SqlState) switch
+        {
+            ({ } code, { } state) => $"[{code}] ({state}) ",
+            ({ } code, null) => $"[{code}] ",
+            _ => string.Empty,
+        };
+        return prefix + ex.Message;
     }
 }
