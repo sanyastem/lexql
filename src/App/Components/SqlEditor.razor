@@ -1,0 +1,58 @@
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div @ref="_host" class="sql-editor-host"></div>
+
+@code {
+    [Parameter]
+    public string InitialValue { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback OnRun { get; set; }
+
+    private ElementReference _host;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<SqlEditor>? _selfRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _selfRef = DotNetObjectReference.Create(this);
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor.js");
+        await _module.InvokeVoidAsync("init", _host, _selfRef, InitialValue);
+    }
+
+    [JSInvokable]
+    public Task OnRunRequested() => OnRun.InvokeAsync();
+
+    public async Task<string> GetValueAsync() =>
+        _module is null ? string.Empty : await _module.InvokeAsync<string>("getValue");
+
+    public async Task<string> GetSelectedTextAsync() =>
+        _module is null ? string.Empty : await _module.InvokeAsync<string>("getSelectedText");
+
+    public async Task<int> GetCursorOffsetAsync() =>
+        _module is null ? 0 : await _module.InvokeAsync<int>("getCursorOffset");
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("dispose");
+            }
+            catch (JSException)
+            {
+            }
+
+            await _module.DisposeAsync();
+        }
+
+        _selfRef?.Dispose();
+    }
+}

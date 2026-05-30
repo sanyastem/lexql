@@ -1,5 +1,6 @@
 @page "/"
 @using Lexql.Core.Results
+@using Lexql.Core.Relational.Sql
 @inject ConnectionSession Session
 
 <div class="workspace">
@@ -60,9 +61,8 @@
 
     <main class="editor-area">
         <section class="panel query-panel">
-            <h2>Query</h2>
-            <textarea class="sql-editor" @bind="_sql" @bind:event="oninput"
-                      placeholder="SELECT 1;" spellcheck="false"></textarea>
+            <h2>Query <small class="hint">Ctrl+Enter to run</small></h2>
+            <SqlEditor @ref="_editor" InitialValue="@InitialSql" OnRun="RunAsync" />
             <div class="query-actions">
                 <button class="btn-run" @onclick="RunAsync" disabled="@(_running || !Session.IsConnected)">
                     @(_running ? "Running…" : "Run")
@@ -100,7 +100,9 @@
     private IReadOnlyList<DatabaseObjectNode>? _roots;
     private bool _busy;
 
-    private string _sql = "SELECT 1;";
+    private const string InitialSql = "SELECT 1;";
+
+    private SqlEditor? _editor;
     private int _rowLimit = 1000;
     private bool _running;
     private string? _runError;
@@ -148,9 +150,33 @@
         _status = null;
     }
 
+    private async Task<string> ResolveSqlAsync()
+    {
+        if (_editor is null)
+        {
+            return string.Empty;
+        }
+
+        var selected = await _editor.GetSelectedTextAsync();
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            return selected;
+        }
+
+        var full = await _editor.GetValueAsync();
+        var offset = await _editor.GetCursorOffsetAsync();
+        return SqlStatementSplitter.StatementAt(full, offset) ?? full;
+    }
+
     private async Task RunAsync()
     {
         if (Session.Current is null)
+        {
+            return;
+        }
+
+        var sql = await ResolveSqlAsync();
+        if (string.IsNullOrWhiteSpace(sql))
         {
             return;
         }
@@ -161,7 +187,7 @@
         _grid = null;
         try
         {
-            var request = new QueryRequest(_sql, RowLimit: _rowLimit);
+            var request = new QueryRequest(sql, RowLimit: _rowLimit);
             var execution = await Session.Current.QueryExecutor.ExecuteAsync(request, CancellationToken.None);
 
             var resultSet = execution.ResultSets.FirstOrDefault();
