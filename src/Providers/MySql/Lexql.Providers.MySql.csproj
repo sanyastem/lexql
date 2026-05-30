@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Core\Lexql.Core.csproj" />
+    <ProjectReference Include="..\..\Core.Relational\Lexql.Core.Relational.csproj" />
   </ItemGroup>
 
   <ItemGroup>

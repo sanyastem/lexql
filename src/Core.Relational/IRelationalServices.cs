@@ -60,11 +60,20 @@ public sealed record TableInfo(
     IReadOnlyList<ColumnInfo> Columns,
     IReadOnlyList<IndexInfo> Indexes,
     IReadOnlyList<ForeignKeyInfo> ForeignKeys,
-    IReadOnlyList<string> PrimaryKey);
+    IReadOnlyList<string> PrimaryKey,
+    IReadOnlyList<CheckConstraintInfo> Checks);
 
-public sealed record ColumnInfo(string Name, string DataType, bool Nullable, string? Default);
+public sealed record ColumnInfo(
+    string Name,
+    string DataType,
+    bool Nullable,
+    string? Default,
+    bool IsGenerated = false,
+    string? GenerationExpression = null);
+
 public sealed record IndexInfo(string Name, IReadOnlyList<string> Columns, bool Unique);
 public sealed record ForeignKeyInfo(string Name, IReadOnlyList<string> Columns, string RefTable, IReadOnlyList<string> RefColumns);
+public sealed record CheckConstraintInfo(string Name, string Expression);
 public sealed record ViewInfo(string Name, string Definition);
 public sealed record RoutineInfo(string Name, RoutineKind Kind, string Definition);
 public enum RoutineKind { Procedure, Function, Trigger }
