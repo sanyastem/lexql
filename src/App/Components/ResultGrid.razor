@@ -8,6 +8,12 @@
     [Parameter, EditorRequired]
     public ResultGridModel Model { get; set; } = default!;
 
+    [Parameter]
+    public bool Editable { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<string> KeyColumns { get; set; } = [];
+
     private ElementReference _element;
     private IJSObjectReference? _module;
     private bool _dirty;
@@ -25,7 +31,27 @@
         _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/grid.js");
 
         var columns = Model.Columns.Select(c => new { name = c.Name, type = c.Type, numeric = c.Numeric });
-        await _module.InvokeVoidAsync("renderGrid", _element, columns, Model.Rows);
+        var options = new { editable = Editable, keyColumns = KeyColumns };
+        await _module.InvokeVoidAsync("renderGrid", _element, columns, Model.Rows, options);
+    }
+
+    public async Task<GridChangeSet?> GetChangesAsync() =>
+        _module is null ? null : await _module.InvokeAsync<GridChangeSet>("getChanges", _element);
+
+    public async Task AddRowAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("addRow", _element);
+        }
+    }
+
+    public async Task DeleteSelectedAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("deleteSelected", _element);
+        }
     }
 
     public async ValueTask DisposeAsync()

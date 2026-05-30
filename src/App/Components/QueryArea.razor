@@ -1,4 +1,5 @@
 @using Lexql.Core.Relational
+@using Lexql.Core.Relational.Dml
 @using Lexql.Core.Relational.Sql
 @using Lexql.Core.Results
 @inject WorkspaceState Workspace
@@ -55,19 +56,44 @@
             {
                 @if (active.Editability is { IsEditable: true } editable)
                 {
-                    <p class="edit-badge editable">✎ Editable — key: @string.Join(", ", editable.KeyColumns)</p>
+                    <div class="edit-toolbar">
+                        <span class="edit-badge editable">✎ Editable — key: @string.Join(", ", editable.KeyColumns)</span>
+                        <button class="btn-sm" @onclick="() => _grid!.AddRowAsync()">Add row</button>
+                        <button class="btn-sm" @onclick="() => _grid!.DeleteSelectedAsync()">Delete selected</button>
+                        <button class="btn-sm primary" @onclick="PrepareApplyAsync">Preview &amp; apply</button>
+                    </div>
+                    <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="editable.KeyColumns" />
                 }
-                else if (active.Editability is { } readOnly)
+                else
                 {
-                    <p class="edit-badge readonly">Read-only — @readOnly.Reason</p>
+                    @if (active.Editability is { } readOnly)
+                    {
+                        <p class="edit-badge readonly">Read-only — @readOnly.Reason</p>
+                    }
+                    <ResultGrid Model="active.Grid" />
                 }
-                <ResultGrid Model="active.Grid" />
             }
             else
             {
                 <p class="status muted">Run a query to see results.</p>
             }
         </section>
+
+        @if (_previewSql is not null)
+        {
+            <div class="modal-overlay" @onclick="CancelApply">
+                <div class="modal" @onclick:stopPropagation="true">
+                    <h3>Apply changes</h3>
+                    <pre class="preview-sql">@_previewSql</pre>
+                    <div class="actions">
+                        <button class="btn-run" @onclick="ConfirmApplyAsync" disabled="@_applying">
+                            @(_applying ? "Applying…" : "Apply in transaction")
+                        </button>
+                        <button class="btn-secondary" @onclick="CancelApply" disabled="@_applying">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        }
     }
     else
     {
@@ -77,7 +103,12 @@
 
 @code {
     private SqlEditor? _editor;
+    private ResultGrid? _grid;
     private bool _running;
+
+    private string? _previewSql;
+    private List<DmlCommand>? _pendingCommands;
+    private bool _applying;
 
     private ServerConnection? ConnectionOf(QueryTab tab) => Workspace.ConnectionFor(tab);
 
@@ -113,6 +144,89 @@
         var items = await provider.GetCompletionsAsync(text, offset, CancellationToken.None);
         return items.Select(i => new CompletionEntry(i.Label, i.Kind.ToString(), i.Detail)).ToList();
     }
+
+    private async Task PrepareApplyAsync()
+    {
+        if (_grid is null || Workspace.ActiveTab is not { Editability: { IsEditable: true } editable })
+        {
+            return;
+        }
+
+        var changes = await _grid.GetChangesAsync();
+        if (changes is null)
+        {
+            return;
+        }
+
+        var rowChanges = BuildRowChanges(changes, editable);
+        _pendingCommands = DmlGenerator.Generate(rowChanges).ToList();
+        _previewSql = _pendingCommands.Count == 0
+            ? null
+            : string.Join(";\n", _pendingCommands.Select(c => c.Sql)) + ";";
+    }
+
+    private async Task ConfirmApplyAsync()
+    {
+        var tab = Workspace.ActiveTab;
+        var connection = tab is null ? null : ConnectionOf(tab);
+        if (tab is null || connection is null || _pendingCommands is null)
+        {
+            return;
+        }
+
+        _applying = true;
+        try
+        {
+            await DmlApplier.ApplyAsync(connection.Connection.QueryExecutor, _pendingCommands, CancellationToken.None);
+            _previewSql = null;
+            _pendingCommands = null;
+            await RunAsync();
+        }
+        catch (QueryExecutionException ex)
+        {
+            tab.Error = ex.Message;
+            _previewSql = null;
+            _pendingCommands = null;
+        }
+        finally
+        {
+            _applying = false;
+        }
+    }
+
+    private void CancelApply()
+    {
+        _previewSql = null;
+        _pendingCommands = null;
+    }
+
+    private static List<RowChange> BuildRowChanges(GridChangeSet changes, EditabilityInfo editable)
+    {
+        var rowChanges = new List<RowChange>();
+
+        foreach (var update in changes.Updates)
+        {
+            rowChanges.Add(new RowChange(
+                RowChangeKind.Update, editable.Table!, Box(update.Values), Box(update.Key), editable.Schema));
+        }
+
+        foreach (var insert in changes.Inserts)
+        {
+            rowChanges.Add(new RowChange(
+                RowChangeKind.Insert, editable.Table!, Box(insert.Values), new Dictionary<string, object?>(), editable.Schema));
+        }
+
+        foreach (var delete in changes.Deletes)
+        {
+            rowChanges.Add(new RowChange(
+                RowChangeKind.Delete, editable.Table!, new Dictionary<string, object?>(), Box(delete.Key), editable.Schema));
+        }
+
+        return rowChanges;
+    }
+
+    private static Dictionary<string, object?> Box(Dictionary<string, string?> map) =>
+        map.ToDictionary(kv => kv.Key, kv => (object?)kv.Value);
 
     private static async Task<EditabilityInfo?> AnalyzeEditabilityAsync(
         ServerConnection connection, string sql, ResultGridModel grid)
