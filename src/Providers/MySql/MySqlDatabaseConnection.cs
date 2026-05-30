@@ -1,6 +1,7 @@
 using Lexql.Core.Abstractions;
 using Lexql.Core.Relational;
 using Lexql.Core.Relational.Schema;
+using Lexql.Core.Relational.Sql;
 using Lexql.Core.Relational.Tree;
 using Lexql.Providers.MySql.Execution;
 using Lexql.Providers.MySql.Metadata;
@@ -13,6 +14,7 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
     private readonly MySqlConnection _connection;
     private readonly IRelationalSchemaReader _schemaReader;
     private readonly IRelationalCatalog _catalog;
+    private readonly ISqlCompletionProvider _completion;
 
     public MySqlDatabaseConnection(
         IDatabaseProvider provider,
@@ -30,6 +32,7 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
 
         _schemaReader = new CachingSchemaReader(new MySqlSchemaReader(connection));
         _catalog = new MySqlCatalog(connection);
+        _completion = new RelationalCompletionProvider(_schemaReader, connection.Database);
         ObjectExplorer = new RelationalObjectExplorer(_catalog, _schemaReader);
         QueryExecutor = new MySqlQueryExecutor(connection, options);
     }
@@ -49,7 +52,8 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
         ObjectExplorer as TService
         ?? QueryExecutor as TService
         ?? _schemaReader as TService
-        ?? _catalog as TService;
+        ?? _catalog as TService
+        ?? _completion as TService;
 
     public ValueTask DisposeAsync() => _connection.DisposeAsync();
 }

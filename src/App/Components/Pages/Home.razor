@@ -1,5 +1,6 @@
 @page "/"
 @using Lexql.Core.Results
+@using Lexql.Core.Relational
 @using Lexql.Core.Relational.Sql
 @inject ConnectionSession Session
 
@@ -62,7 +63,7 @@
     <main class="editor-area">
         <section class="panel query-panel">
             <h2>Query <small class="hint">Ctrl+Enter to run</small></h2>
-            <SqlEditor @ref="_editor" InitialValue="@InitialSql" OnRun="RunAsync" />
+            <SqlEditor @ref="_editor" InitialValue="@InitialSql" OnRun="RunAsync" CompletionSource="GetCompletionsAsync" />
             <div class="query-actions">
                 <button class="btn-run" @onclick="RunAsync" disabled="@(_running || !Session.IsConnected)">
                     @(_running ? "Running…" : "Run")
@@ -148,6 +149,18 @@
         _roots = null;
         _grid = null;
         _status = null;
+    }
+
+    private async Task<IReadOnlyList<CompletionEntry>> GetCompletionsAsync(string text, int offset)
+    {
+        var provider = Session.Current?.GetService<ISqlCompletionProvider>();
+        if (provider is null)
+        {
+            return [];
+        }
+
+        var items = await provider.GetCompletionsAsync(text, offset, CancellationToken.None);
+        return items.Select(i => new CompletionEntry(i.Label, i.Kind.ToString(), i.Detail)).ToList();
     }
 
     private async Task<string> ResolveSqlAsync()

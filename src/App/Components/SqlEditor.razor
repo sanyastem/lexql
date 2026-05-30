@@ -10,6 +10,9 @@
     [Parameter]
     public EventCallback OnRun { get; set; }
 
+    [Parameter]
+    public Func<string, int, Task<IReadOnlyList<CompletionEntry>>>? CompletionSource { get; set; }
+
     private ElementReference _host;
     private IJSObjectReference? _module;
     private DotNetObjectReference<SqlEditor>? _selfRef;
@@ -28,6 +31,17 @@
 
     [JSInvokable]
     public Task OnRunRequested() => OnRun.InvokeAsync();
+
+    [JSInvokable]
+    public async Task<IReadOnlyList<CompletionEntry>> GetCompletions(string text, int offset)
+    {
+        if (CompletionSource is null)
+        {
+            return [];
+        }
+
+        return await CompletionSource(text, offset);
+    }
 
     public async Task<string> GetValueAsync() =>
         _module is null ? string.Empty : await _module.InvokeAsync<string>("getValue");

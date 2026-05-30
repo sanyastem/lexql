@@ -1,7 +1,10 @@
 let editor = null;
+let completionRef = null;
+let completionRegistered = false;
 
 export function init(host, dotnetRef, initialValue) {
     window.MonacoEnvironment = { getWorkerUrl: () => "data:text/javascript;charset=utf-8," };
+    completionRef = dotnetRef;
 
     return new Promise((resolve, reject) => {
         try {
@@ -22,12 +25,61 @@ export function init(host, dotnetRef, initialValue) {
                     dotnetRef.invokeMethodAsync("OnRunRequested");
                 });
 
+                registerCompletion();
                 resolve();
             });
         } catch (error) {
             reject(error);
         }
     });
+}
+
+function registerCompletion() {
+    if (completionRegistered) {
+        return;
+    }
+
+    completionRegistered = true;
+    monaco.languages.registerCompletionItemProvider("sql", {
+        triggerCharacters: [".", " "],
+        provideCompletionItems: async (model, position) => {
+            if (!completionRef) {
+                return { suggestions: [] };
+            }
+
+            const offset = model.getOffsetAt(position);
+            const entries = await completionRef.invokeMethodAsync("GetCompletions", model.getValue(), offset);
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn,
+            };
+
+            return {
+                suggestions: entries.map((e) => ({
+                    label: e.label,
+                    kind: kindOf(e.kind),
+                    detail: e.detail,
+                    insertText: e.label,
+                    range,
+                })),
+            };
+        },
+    });
+}
+
+function kindOf(kind) {
+    const kinds = monaco.languages.CompletionItemKind;
+    switch (kind) {
+        case "Table": return kinds.Struct;
+        case "Column": return kinds.Field;
+        case "Function": return kinds.Function;
+        case "Schema": return kinds.Module;
+        case "Alias": return kinds.Variable;
+        default: return kinds.Keyword;
+    }
 }
 
 export function getValue() {

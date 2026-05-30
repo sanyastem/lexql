@@ -14,7 +14,8 @@ public sealed class MySqlDatabaseProvider : IDatabaseProvider
         ProviderCapabilities.QueryText
         | ProviderCapabilities.ObjectExplorer
         | ProviderCapabilities.Transactions
-        | ProviderCapabilities.RelationalSchema;
+        | ProviderCapabilities.RelationalSchema
+        | ProviderCapabilities.SqlCompletion;
 
     public IReadOnlyList<ConnectionField> DescribeConnectionFields() => MySqlConnectionFields.Describe();
 
