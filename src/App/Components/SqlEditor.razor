@@ -46,6 +46,14 @@
     public async Task<string> GetValueAsync() =>
         _module is null ? string.Empty : await _module.InvokeAsync<string>("getValue");
 
+    public async Task SetValueAsync(string value)
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("setValue", value);
+        }
+    }
+
     public async Task<string> GetSelectedTextAsync() =>
         _module is null ? string.Empty : await _module.InvokeAsync<string>("getSelectedText");
 

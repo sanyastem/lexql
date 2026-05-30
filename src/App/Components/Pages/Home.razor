@@ -1,7 +1,9 @@
 @page "/"
 @implements IDisposable
+@using Lexql.Core.History
 @inject WorkspaceState Workspace
 @inject LocalizationService Localization
+@inject IQueryHistoryStore History
 
 <div class="shell">
     <ConnectionsSidebar />
@@ -14,6 +16,7 @@
         Workspace.Changed += OnChanged;
         Localization.Changed += OnChanged;
         await Localization.InitializeAsync();
+        await History.InitializeAsync(CancellationToken.None);
         await Workspace.InitializeAsync();
     }
 

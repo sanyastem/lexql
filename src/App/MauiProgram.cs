@@ -1,6 +1,7 @@
 ﻿using Lexql.App.Services;
 using Lexql.Core.Abstractions;
 using Lexql.Core.Connections;
+using Lexql.Core.History;
 using Lexql.Providers.MySql;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
@@ -35,6 +36,8 @@ public static class MauiProgram
 		});
 		builder.Services.AddSingleton<WorkspaceState>();
 		builder.Services.AddSingleton<LocalizationService>();
+		builder.Services.AddSingleton<IQueryHistoryStore>(
+			_ => new SqliteQueryHistoryStore(Path.Combine(FileSystem.AppDataDirectory, "history.db")));
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

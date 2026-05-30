@@ -28,5 +28,11 @@
   "grid.applyTx": "Zastosuj w transakcji",
   "grid.applying": "Stosowanie…",
   "tree.loading": "Ładowanie schematu…",
-  "tree.notConnected": "Nie połączono."
+  "tree.notConnected": "Nie połączono.",
+  "history.title": "Historia",
+  "history.search": "Szukaj w historii…",
+  "history.saved": "Zapisane zapytania",
+  "history.saveName": "Nazwa zapytania",
+  "history.save": "Zapisz bieżące",
+  "history.empty": "Brak historii."
 }

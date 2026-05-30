@@ -1,9 +1,11 @@
+@using Lexql.Core.History
 @using Lexql.Core.Relational
 @using Lexql.Core.Relational.Dml
 @using Lexql.Core.Relational.Sql
 @using Lexql.Core.Results
 @inject WorkspaceState Workspace
 @inject LocalizationService L
+@inject IQueryHistoryStore History
 
 <main class="editor-area">
     <div class="tab-strip">
@@ -16,7 +18,38 @@
         }
         <button class="tab-add" title="@L["query.newQuery"]" @onclick="() => Workspace.AddTab()"
                 disabled="@(Workspace.Connections.Count == 0)">＋</button>
+        <button class="tab-add history-toggle" title="@L["history.title"]" @onclick="ToggleHistoryAsync">🕘</button>
     </div>
+
+    @if (_showHistory)
+    {
+        <section class="panel history-panel">
+            <h2>@L["history.title"]</h2>
+            <input class="field-input" placeholder="@L["history.search"]"
+                   @bind="_historySearch" @bind:event="oninput" @onkeyup="RefreshHistoryAsync" />
+            <ul class="history-list">
+                @foreach (var entry in _history)
+                {
+                    <li class="@(entry.Success ? null : "failed")" @onclick="() => LoadSqlAsync(entry.Sql)">@entry.Sql</li>
+                }
+                @if (_history.Count == 0)
+                {
+                    <li class="muted">@L["history.empty"]</li>
+                }
+            </ul>
+            <div class="muted small">@L["history.saved"]</div>
+            <ul class="history-list">
+                @foreach (var saved in _saved)
+                {
+                    <li @onclick="() => LoadSqlAsync(saved.Sql)">@saved.Name</li>
+                }
+            </ul>
+            <div class="save-row">
+                <input class="field-input" placeholder="@L["history.saveName"]" @bind="_saveName" />
+                <button class="btn-sm" @onclick="SaveCurrentAsync">@L["history.save"]</button>
+            </div>
+        </section>
+    }
 
     @if (Workspace.ActiveTab is { } active)
     {
@@ -124,7 +157,53 @@
     private bool _running;
     private CancellationTokenSource? _cts;
 
+    private bool _showHistory;
+    private string? _historySearch;
+    private string _saveName = string.Empty;
+    private IReadOnlyList<QueryHistoryEntry> _history = [];
+    private IReadOnlyList<SavedQuery> _saved = [];
+
     private void Stop() => _cts?.Cancel();
+
+    private async Task ToggleHistoryAsync()
+    {
+        _showHistory = !_showHistory;
+        if (_showHistory)
+        {
+            await RefreshHistoryAsync();
+        }
+    }
+
+    private async Task RefreshHistoryAsync()
+    {
+        var search = string.IsNullOrWhiteSpace(_historySearch) ? null : _historySearch;
+        _history = await History.SearchHistoryAsync(search, 50, CancellationToken.None);
+        _saved = await History.ListSavedAsync(CancellationToken.None);
+    }
+
+    private async Task LoadSqlAsync(string sql)
+    {
+        if (Workspace.ActiveTab is { } tab)
+        {
+            tab.Sql = sql;
+            if (_editor is not null)
+            {
+                await _editor.SetValueAsync(sql);
+            }
+        }
+    }
+
+    private async Task SaveCurrentAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_saveName) || _editor is null)
+        {
+            return;
+        }
+
+        await History.SaveQueryAsync(_saveName, await _editor.GetValueAsync(), CancellationToken.None);
+        _saveName = string.Empty;
+        await RefreshHistoryAsync();
+    }
 
     private string? _previewSql;
     private List<DmlCommand>? _pendingCommands;
@@ -336,6 +415,8 @@
             {
                 tab.Status = $"{execution.AffectedCount ?? 0} affected in {execution.Elapsed.TotalMilliseconds:F0} ms";
             }
+
+            await History.AddHistoryAsync(sql, connection.Name, true, CancellationToken.None);
         }
         catch (OperationCanceledException)
         {
@@ -344,6 +425,7 @@
         catch (QueryExecutionException ex)
         {
             tab.Error = FormatError(ex);
+            await History.AddHistoryAsync(sql, connection.Name, false, CancellationToken.None);
         }
         finally
         {
