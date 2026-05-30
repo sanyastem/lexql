@@ -348,3 +348,5 @@ h1:focus {
     padding: 0.6rem; font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.82rem;
     white-space: pre-wrap; max-height: 50vh; overflow: auto;
 }
+
+.ro-badge { background: #b08; color: #fff; font-size: 0.62rem; padding: 0 0.3rem; border-radius: 3px; margin-left: 0.3rem; vertical-align: middle; }

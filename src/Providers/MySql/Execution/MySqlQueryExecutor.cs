@@ -2,6 +2,7 @@ using System.Data;
 using System.Diagnostics;
 using Lexql.Core.Abstractions;
 using Lexql.Core.Relational.Execution;
+using Lexql.Core.Relational.Sql;
 using MySqlConnector;
 
 namespace Lexql.Providers.MySql.Execution;
@@ -21,6 +22,11 @@ public sealed class MySqlQueryExecutor : IQueryExecutor
     public async Task<QueryExecution> ExecuteAsync(QueryRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        if (_options.ReadOnly && SqlStatementClassifier.ContainsWrite(request.Text))
+        {
+            throw new ReadOnlyViolationException();
+        }
 
         if (_connection.State != ConnectionState.Open)
         {

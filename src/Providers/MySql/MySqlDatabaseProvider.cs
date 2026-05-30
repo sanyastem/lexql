@@ -34,7 +34,8 @@ public sealed class MySqlDatabaseProvider : IDatabaseProvider
         try
         {
             await connection.OpenAsync(ct);
-            var options = new MySqlQueryExecutorOptions(DefaultRowLimit: profile.DefaultRowLimit);
+            var options = new MySqlQueryExecutorOptions(
+                DefaultRowLimit: profile.DefaultRowLimit, ReadOnly: profile.ReadOnly);
             return new MySqlDatabaseConnection(this, connection, profile.ReadOnly, options, tunnel);
         }
         catch

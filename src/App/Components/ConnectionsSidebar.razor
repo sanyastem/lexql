@@ -31,7 +31,13 @@
         {
             <div class="server @(server.Id == Workspace.ActiveConnectionId ? "active" : null)">
                 <div class="server-head" @onclick="() => Workspace.SetActiveConnection(server.Id)">
-                    <span class="server-name">@server.Name</span>
+                    <span class="server-name">
+                        @server.Name
+                        @if (server.Connection.IsReadOnly)
+                        {
+                            <span class="ro-badge" title="Read-only">RO</span>
+                        }
+                    </span>
                     <button class="btn-x" title="Disconnect"
                             @onclick:stopPropagation="true"
                             @onclick="() => Workspace.DisconnectAsync(server.Id)">×</button>

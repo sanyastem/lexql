@@ -12,6 +12,15 @@
     </div>
 
     <label class="field-inline">
+        <input type="checkbox" @bind="_readOnly" /> Read-only connection
+    </label>
+
+    <label class="field">
+        <span class="field-label">Default row limit</span>
+        <input class="field-input" type="number" min="1" @bind="_rowLimit" />
+    </label>
+
+    <label class="field-inline">
         <input type="checkbox" @bind="_save" /> Save as profile
     </label>
 
@@ -37,6 +46,8 @@
 
     private readonly Dictionary<string, string?> _values = new();
     private bool _save;
+    private bool _readOnly;
+    private int? _rowLimit;
     private bool _busy;
 
     protected override void OnInitialized()
@@ -47,6 +58,9 @@
                 ? value
                 : field.Default;
         }
+
+        _readOnly = Template?.ReadOnly ?? false;
+        _rowLimit = Template?.DefaultRowLimit;
     }
 
     private static string InputType(ConnectionField field) => field.Kind switch
@@ -64,7 +78,9 @@
             var name = _values.TryGetValue("host", out var host) && !string.IsNullOrWhiteSpace(host)
                 ? host!
                 : Workspace.ProviderId;
-            var profile = new ConnectionProfile(Workspace.ProviderId, name, new Dictionary<string, string?>(_values));
+            var profile = new ConnectionProfile(
+                Workspace.ProviderId, name, new Dictionary<string, string?>(_values),
+                ReadOnly: _readOnly, DefaultRowLimit: _rowLimit);
 
             if (_save)
             {
