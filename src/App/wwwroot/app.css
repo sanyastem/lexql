@@ -350,3 +350,6 @@ h1:focus {
 }
 
 .ro-badge { background: #b08; color: #fff; font-size: 0.62rem; padding: 0 0.3rem; border-radius: 3px; margin-left: 0.3rem; vertical-align: middle; }
+
+.header-actions { display: flex; align-items: center; gap: 0.4rem; }
+.lang-select { font-size: 0.72rem; padding: 0.1rem 0.2rem; border: 1px solid #ccc; border-radius: 4px; }

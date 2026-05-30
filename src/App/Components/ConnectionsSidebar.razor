@@ -1,20 +1,29 @@
 @inject WorkspaceState Workspace
+@inject LocalizationService L
 
 <aside class="sidebar">
     <div class="sidebar-header">
-        <span>Servers</span>
-        <button class="btn-add" title="New connection" @onclick="ShowNewForm">＋</button>
+        <span>@L["app.servers"]</span>
+        <div class="header-actions">
+            <select class="lang-select" value="@L.CurrentLanguage" @onchange="OnLanguageChanged">
+                @foreach (var language in L.Languages)
+                {
+                    <option value="@language.Code">@language.Name</option>
+                }
+            </select>
+            <button class="btn-add" title="@L["conn.newConnection"]" @onclick="ShowNewForm">＋</button>
+        </div>
     </div>
 
     @if (_showForm)
     {
-        <ConnectForm @key="@(_template?.Name ?? "new")" Template="_template" OnDone="HideForm" />
+        <ConnectForm @key="FormKey" Template="_template" OnDone="HideForm" />
     }
 
     @if (Workspace.SavedProfiles.Count > 0)
     {
         <div class="saved">
-            <div class="muted small">Saved</div>
+            <div class="muted small">@L["app.saved"]</div>
             @foreach (var profile in Workspace.SavedProfiles)
             {
                 <button class="profile" @onclick="() => OpenTemplate(profile)">@profile.Name</button>
@@ -25,7 +34,7 @@
     <div class="servers">
         @if (Workspace.Connections.Count == 0)
         {
-            <p class="muted small">No open connections.</p>
+            <p class="muted small">@L["app.noConnections"]</p>
         }
         @foreach (var server in Workspace.Connections)
         {
@@ -38,7 +47,7 @@
                             <span class="ro-badge" title="Read-only">RO</span>
                         }
                     </span>
-                    <button class="btn-x" title="Disconnect"
+                    <button class="btn-x" title="@L["conn.disconnect"]"
                             @onclick:stopPropagation="true"
                             @onclick="() => Workspace.DisconnectAsync(server.Id)">×</button>
                 </div>
@@ -56,6 +65,8 @@
 @code {
     private bool _showForm;
     private ConnectionProfile? _template;
+
+    private string FormKey => _template?.Name ?? "new";
 
     protected override void OnInitialized()
     {
@@ -75,4 +86,6 @@
     }
 
     private void HideForm() => _showForm = false;
+
+    private void OnLanguageChanged(ChangeEventArgs e) => L.SetLanguage(e.Value?.ToString() ?? "en");
 }

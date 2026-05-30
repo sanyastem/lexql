@@ -1,6 +1,7 @@
 @page "/"
 @implements IDisposable
 @inject WorkspaceState Workspace
+@inject LocalizationService Localization
 
 <div class="shell">
     <ConnectionsSidebar />
@@ -11,10 +12,16 @@
     protected override async Task OnInitializedAsync()
     {
         Workspace.Changed += OnChanged;
+        Localization.Changed += OnChanged;
+        await Localization.InitializeAsync();
         await Workspace.InitializeAsync();
     }
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Workspace.Changed -= OnChanged;
+    public void Dispose()
+    {
+        Workspace.Changed -= OnChanged;
+        Localization.Changed -= OnChanged;
+    }
 }

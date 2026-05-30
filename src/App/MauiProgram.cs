@@ -34,6 +34,7 @@ public static class MauiProgram
 			return new JsonConnectionProfileStore(path, secretKeys, sp.GetRequiredService<ISecretProtector>());
 		});
 		builder.Services.AddSingleton<WorkspaceState>();
+		builder.Services.AddSingleton<LocalizationService>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

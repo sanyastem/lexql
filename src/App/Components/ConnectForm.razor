@@ -1,4 +1,5 @@
 @inject WorkspaceState Workspace
+@inject LocalizationService L
 
 <div class="connect-form">
     <div class="fields">
@@ -12,23 +13,23 @@
     </div>
 
     <label class="field-inline">
-        <input type="checkbox" @bind="_readOnly" /> Read-only connection
+        <input type="checkbox" @bind="_readOnly" /> @L["conn.readOnly"]
     </label>
 
     <label class="field">
-        <span class="field-label">Default row limit</span>
+        <span class="field-label">@L["conn.rowLimit"]</span>
         <input class="field-input" type="number" min="1" @bind="_rowLimit" />
     </label>
 
     <label class="field-inline">
-        <input type="checkbox" @bind="_save" /> Save as profile
+        <input type="checkbox" @bind="_save" /> @L["conn.save"]
     </label>
 
     <div class="actions">
         <button class="btn-connect" @onclick="ConnectAsync" disabled="@_busy">
-            @(_busy ? "Connecting…" : "Connect")
+            @(_busy ? L["conn.connecting"] : L["conn.connect"])
         </button>
-        <button class="btn-secondary" @onclick="Cancel" disabled="@_busy">Cancel</button>
+        <button class="btn-secondary" @onclick="Cancel" disabled="@_busy">@L["conn.cancel"]</button>
     </div>
 
     @if (Workspace.LastError is not null)

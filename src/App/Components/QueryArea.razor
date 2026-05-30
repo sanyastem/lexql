@@ -3,6 +3,7 @@
 @using Lexql.Core.Relational.Sql
 @using Lexql.Core.Results
 @inject WorkspaceState Workspace
+@inject LocalizationService L
 
 <main class="editor-area">
     <div class="tab-strip">
@@ -13,7 +14,7 @@
                 <button class="btn-x" @onclick:stopPropagation="true" @onclick="() => Workspace.CloseTab(tab.Id)">×</button>
             </div>
         }
-        <button class="tab-add" title="New query" @onclick="() => Workspace.AddTab()"
+        <button class="tab-add" title="@L["query.newQuery"]" @onclick="() => Workspace.AddTab()"
                 disabled="@(Workspace.Connections.Count == 0)">＋</button>
     </div>
 
@@ -22,13 +23,13 @@
         <section class="panel query-panel">
             <div class="query-head">
                 <select class="conn-select" value="@active.ConnectionId" @onchange="e => SetConnection(active, e)">
-                    <option value="">— connection —</option>
+                    <option value="">@L["query.noConnection"]</option>
                     @foreach (var server in Workspace.Connections)
                     {
                         <option value="@server.Id">@server.Name</option>
                     }
                 </select>
-                <span class="hint">Ctrl+Enter to run</span>
+                <span class="hint">@L["query.hint"]</span>
             </div>
 
             <SqlEditor @key="active.Id" @ref="_editor"
@@ -36,9 +37,9 @@
 
             <div class="query-actions">
                 <button class="btn-run" @onclick="RunAsync" disabled="@(_running || ConnectionOf(active) is null)">
-                    @(_running ? "Running…" : "Run")
+                    @(_running ? L["query.running"] : L["query.run"])
                 </button>
-                <label class="limit">Limit <input class="limit-input" type="number" min="1" @bind="active.RowLimit" /></label>
+                <label class="limit">@L["query.limit"] <input class="limit-input" type="number" min="1" @bind="active.RowLimit" /></label>
                 @if (active.Status is not null)
                 {
                     <span class="run-status">@active.Status</span>
@@ -57,10 +58,10 @@
                 @if (active.Editability is { IsEditable: true } editable)
                 {
                     <div class="edit-toolbar">
-                        <span class="edit-badge editable">✎ Editable — key: @string.Join(", ", editable.KeyColumns)</span>
-                        <button class="btn-sm" @onclick="() => _grid!.AddRowAsync()">Add row</button>
-                        <button class="btn-sm" @onclick="() => _grid!.DeleteSelectedAsync()">Delete selected</button>
-                        <button class="btn-sm primary" @onclick="PrepareApplyAsync">Preview &amp; apply</button>
+                        <span class="edit-badge editable">✎ @editable.Table — key: @string.Join(", ", editable.KeyColumns)</span>
+                        <button class="btn-sm" @onclick="() => _grid!.AddRowAsync()">@L["grid.addRow"]</button>
+                        <button class="btn-sm" @onclick="() => _grid!.DeleteSelectedAsync()">@L["grid.deleteSelected"]</button>
+                        <button class="btn-sm primary" @onclick="PrepareApplyAsync">@L["grid.preview"]</button>
                     </div>
                     <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="editable.KeyColumns" />
                 }
@@ -75,7 +76,7 @@
             }
             else
             {
-                <p class="status muted">Run a query to see results.</p>
+                <p class="status muted">@L["query.runPrompt"]</p>
             }
         </section>
 
@@ -83,13 +84,13 @@
         {
             <div class="modal-overlay" @onclick="CancelApply">
                 <div class="modal" @onclick:stopPropagation="true">
-                    <h3>Apply changes</h3>
+                    <h3>@L["grid.applyTitle"]</h3>
                     <pre class="preview-sql">@_previewSql</pre>
                     <div class="actions">
                         <button class="btn-run" @onclick="ConfirmApplyAsync" disabled="@_applying">
-                            @(_applying ? "Applying…" : "Apply in transaction")
+                            @(_applying ? L["grid.applying"] : L["grid.applyTx"])
                         </button>
-                        <button class="btn-secondary" @onclick="CancelApply" disabled="@_applying">Cancel</button>
+                        <button class="btn-secondary" @onclick="CancelApply" disabled="@_applying">@L["conn.cancel"]</button>
                     </div>
                 </div>
             </div>
@@ -97,7 +98,7 @@
     }
     else
     {
-        <p class="status muted">Open a connection and add a query tab.</p>
+        <p class="status muted">@L["query.empty"]</p>
     }
 </main>
 
