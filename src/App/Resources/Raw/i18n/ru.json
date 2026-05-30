@@ -13,6 +13,8 @@
   "conn.save": "Сохранить профиль",
   "query.run": "Выполнить",
   "query.running": "Выполняется…",
+  "query.stop": "Стоп",
+  "query.canceled": "Отменено",
   "query.limit": "Лимит",
   "query.hint": "Ctrl+Enter — выполнить",
   "query.newQuery": "Новый запрос",

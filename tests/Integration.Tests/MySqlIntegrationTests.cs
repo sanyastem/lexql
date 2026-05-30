@@ -97,6 +97,21 @@ public abstract class MySqlIntegrationTests
     }
 
     [Fact]
+    public async Task QueryExecutor_Cancel_StopsLongQueryAndConnectionRecovers()
+    {
+        await using var connection = OpenConnection();
+        await connection.OpenAsync();
+        var executor = new MySqlQueryExecutor(connection);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => executor.ExecuteAsync(new QueryRequest("SELECT SLEEP(10)"), cts.Token));
+
+        var recovered = await executor.ExecuteAsync(new QueryRequest("SELECT 1"), CancellationToken.None);
+        Assert.Single(recovered.ResultSets);
+    }
+
+    [Fact]
     public async Task ConnectionOpener_Probe_ReportsServerFamily()
     {
         var probe = await new MySqlConnectionOpener().TestAsync(_fixture.Profile(), CancellationToken.None);

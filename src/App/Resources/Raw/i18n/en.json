@@ -13,6 +13,8 @@
   "conn.save": "Save as profile",
   "query.run": "Run",
   "query.running": "Running…",
+  "query.stop": "Stop",
+  "query.canceled": "Canceled",
   "query.limit": "Limit",
   "query.hint": "Ctrl+Enter to run",
   "query.newQuery": "New query",

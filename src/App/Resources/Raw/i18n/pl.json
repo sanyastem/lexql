@@ -13,6 +13,8 @@
   "conn.save": "Zapisz profil",
   "query.run": "Wykonaj",
   "query.running": "Wykonywanie…",
+  "query.stop": "Zatrzymaj",
+  "query.canceled": "Anulowano",
   "query.limit": "Limit",
   "query.hint": "Ctrl+Enter, aby wykonać",
   "query.newQuery": "Nowe zapytanie",

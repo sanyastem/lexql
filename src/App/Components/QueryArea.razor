@@ -39,6 +39,10 @@
                 <button class="btn-run" @onclick="RunAsync" disabled="@(_running || ConnectionOf(active) is null)">
                     @(_running ? L["query.running"] : L["query.run"])
                 </button>
+                @if (_running)
+                {
+                    <button class="btn-stop" @onclick="Stop">@L["query.stop"]</button>
+                }
                 <label class="limit">@L["query.limit"] <input class="limit-input" type="number" min="1" @bind="active.RowLimit" /></label>
                 @if (active.Status is not null)
                 {
@@ -118,6 +122,9 @@
     private SqlEditor? _editor;
     private ResultGrid? _grid;
     private bool _running;
+    private CancellationTokenSource? _cts;
+
+    private void Stop() => _cts?.Cancel();
 
     private string? _previewSql;
     private List<DmlCommand>? _pendingCommands;
@@ -311,16 +318,17 @@
         tab.Grid = null;
         tab.Editability = null;
         tab.Messages = [];
+        _cts = new CancellationTokenSource();
         try
         {
             var request = new QueryRequest(sql, RowLimit: tab.RowLimit);
-            var execution = await connection.Connection.QueryExecutor.ExecuteAsync(request, CancellationToken.None);
+            var execution = await connection.Connection.QueryExecutor.ExecuteAsync(request, _cts.Token);
             tab.Messages = execution.Messages;
 
             var resultSet = execution.ResultSets.FirstOrDefault();
             if (resultSet is not null)
             {
-                tab.Grid = await ResultGridBuilder.BuildAsync(resultSet, CancellationToken.None);
+                tab.Grid = await ResultGridBuilder.BuildAsync(resultSet, _cts.Token);
                 tab.Status = $"{tab.Grid.Rows.Count} rows in {execution.Elapsed.TotalMilliseconds:F0} ms";
                 tab.Editability = await AnalyzeEditabilityAsync(connection, sql, tab.Grid);
             }
@@ -329,6 +337,10 @@
                 tab.Status = $"{execution.AffectedCount ?? 0} affected in {execution.Elapsed.TotalMilliseconds:F0} ms";
             }
         }
+        catch (OperationCanceledException)
+        {
+            tab.Status = L["query.canceled"];
+        }
         catch (QueryExecutionException ex)
         {
             tab.Error = FormatError(ex);
@@ -336,6 +348,8 @@
         finally
         {
             _running = false;
+            _cts?.Dispose();
+            _cts = null;
         }
     }
 
