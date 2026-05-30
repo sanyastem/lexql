@@ -1,0 +1,19 @@
+
+# Archives
+files.zip
+
+# Build artifacts
+[Bb]in/
+[Oo]bj/
+*.user
+.vs/
+*.suo
+*.userprefs
+
+# OS
+Thumbs.db
+.DS_Store
+
+# .NET
+*.nupkg
+project.lock.json
