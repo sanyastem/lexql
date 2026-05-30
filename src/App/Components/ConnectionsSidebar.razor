@@ -1,0 +1,72 @@
+@inject WorkspaceState Workspace
+
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <span>Servers</span>
+        <button class="btn-add" title="New connection" @onclick="ShowNewForm">＋</button>
+    </div>
+
+    @if (_showForm)
+    {
+        <ConnectForm @key="@(_template?.Name ?? "new")" Template="_template" OnDone="HideForm" />
+    }
+
+    @if (Workspace.SavedProfiles.Count > 0)
+    {
+        <div class="saved">
+            <div class="muted small">Saved</div>
+            @foreach (var profile in Workspace.SavedProfiles)
+            {
+                <button class="profile" @onclick="() => OpenTemplate(profile)">@profile.Name</button>
+            }
+        </div>
+    }
+
+    <div class="servers">
+        @if (Workspace.Connections.Count == 0)
+        {
+            <p class="muted small">No open connections.</p>
+        }
+        @foreach (var server in Workspace.Connections)
+        {
+            <div class="server @(server.Id == Workspace.ActiveConnectionId ? "active" : null)">
+                <div class="server-head" @onclick="() => Workspace.SetActiveConnection(server.Id)">
+                    <span class="server-name">@server.Name</span>
+                    <button class="btn-x" title="Disconnect"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => Workspace.DisconnectAsync(server.Id)">×</button>
+                </div>
+                <ul class="tree-root">
+                    @foreach (var root in server.Roots)
+                    {
+                        <ObjectTreeNode Node="root" Explorer="server.Connection.ObjectExplorer" />
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+</aside>
+
+@code {
+    private bool _showForm;
+    private ConnectionProfile? _template;
+
+    protected override void OnInitialized()
+    {
+        _showForm = Workspace.Connections.Count == 0 && Workspace.SavedProfiles.Count == 0;
+    }
+
+    private void ShowNewForm()
+    {
+        _template = null;
+        _showForm = true;
+    }
+
+    private void OpenTemplate(ConnectionProfile profile)
+    {
+        _template = profile;
+        _showForm = true;
+    }
+
+    private void HideForm() => _showForm = false;
+}

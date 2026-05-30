@@ -1,0 +1,86 @@
+@inject WorkspaceState Workspace
+
+<div class="connect-form">
+    <div class="fields">
+        @foreach (var field in Workspace.Fields)
+        {
+            <label class="field">
+                <span class="field-label">@field.Label@(field.Required ? " *" : null)</span>
+                <input class="field-input" type="@InputType(field)" @bind="_values[field.Key]" />
+            </label>
+        }
+    </div>
+
+    <label class="field-inline">
+        <input type="checkbox" @bind="_save" /> Save as profile
+    </label>
+
+    <div class="actions">
+        <button class="btn-connect" @onclick="ConnectAsync" disabled="@_busy">
+            @(_busy ? "Connecting…" : "Connect")
+        </button>
+        <button class="btn-secondary" @onclick="Cancel" disabled="@_busy">Cancel</button>
+    </div>
+
+    @if (Workspace.LastError is not null)
+    {
+        <p class="status error">@Workspace.LastError</p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback OnDone { get; set; }
+
+    [Parameter]
+    public ConnectionProfile? Template { get; set; }
+
+    private readonly Dictionary<string, string?> _values = new();
+    private bool _save;
+    private bool _busy;
+
+    protected override void OnInitialized()
+    {
+        foreach (var field in Workspace.Fields)
+        {
+            _values[field.Key] = Template is not null && Template.Settings.TryGetValue(field.Key, out var value)
+                ? value
+                : field.Default;
+        }
+    }
+
+    private static string InputType(ConnectionField field) => field.Kind switch
+    {
+        ConnectionFieldKind.Password => "password",
+        ConnectionFieldKind.Number => "number",
+        _ => "text",
+    };
+
+    private async Task ConnectAsync()
+    {
+        _busy = true;
+        try
+        {
+            var name = _values.TryGetValue("host", out var host) && !string.IsNullOrWhiteSpace(host)
+                ? host!
+                : Workspace.ProviderId;
+            var profile = new ConnectionProfile(Workspace.ProviderId, name, new Dictionary<string, string?>(_values));
+
+            if (_save)
+            {
+                await Workspace.SaveProfileAsync(profile);
+            }
+
+            if (await Workspace.ConnectAsync(profile))
+            {
+                await OnDone.InvokeAsync();
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task Cancel() => OnDone.InvokeAsync();
+}

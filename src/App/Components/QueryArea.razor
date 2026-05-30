@@ -1,0 +1,176 @@
+@using Lexql.Core.Relational
+@using Lexql.Core.Relational.Sql
+@using Lexql.Core.Results
+@inject WorkspaceState Workspace
+
+<main class="editor-area">
+    <div class="tab-strip">
+        @foreach (var tab in Workspace.Tabs)
+        {
+            <div class="tab @(tab.Id == Workspace.ActiveTabId ? "active" : null)" @onclick="() => SwitchTabAsync(tab.Id)">
+                <span>@tab.Title</span>
+                <button class="btn-x" @onclick:stopPropagation="true" @onclick="() => Workspace.CloseTab(tab.Id)">×</button>
+            </div>
+        }
+        <button class="tab-add" title="New query" @onclick="() => Workspace.AddTab()"
+                disabled="@(Workspace.Connections.Count == 0)">＋</button>
+    </div>
+
+    @if (Workspace.ActiveTab is { } active)
+    {
+        <section class="panel query-panel">
+            <div class="query-head">
+                <select class="conn-select" value="@active.ConnectionId" @onchange="e => SetConnection(active, e)">
+                    <option value="">— connection —</option>
+                    @foreach (var server in Workspace.Connections)
+                    {
+                        <option value="@server.Id">@server.Name</option>
+                    }
+                </select>
+                <span class="hint">Ctrl+Enter to run</span>
+            </div>
+
+            <SqlEditor @key="active.Id" @ref="_editor"
+                       InitialValue="@active.Sql" OnRun="RunAsync" CompletionSource="GetCompletionsAsync" />
+
+            <div class="query-actions">
+                <button class="btn-run" @onclick="RunAsync" disabled="@(_running || ConnectionOf(active) is null)">
+                    @(_running ? "Running…" : "Run")
+                </button>
+                <label class="limit">Limit <input class="limit-input" type="number" min="1" @bind="active.RowLimit" /></label>
+                @if (active.Status is not null)
+                {
+                    <span class="run-status">@active.Status</span>
+                }
+            </div>
+
+            @if (active.Error is not null)
+            {
+                <p class="status error">@active.Error</p>
+            }
+        </section>
+
+        <section class="panel result-panel">
+            @if (active.Grid is not null)
+            {
+                <ResultGrid Model="active.Grid" />
+            }
+            else
+            {
+                <p class="status muted">Run a query to see results.</p>
+            }
+        </section>
+    }
+    else
+    {
+        <p class="status muted">Open a connection and add a query tab.</p>
+    }
+</main>
+
+@code {
+    private SqlEditor? _editor;
+    private bool _running;
+
+    private ServerConnection? ConnectionOf(QueryTab tab) => Workspace.ConnectionFor(tab);
+
+    private async Task SwitchTabAsync(string id)
+    {
+        await SaveEditorAsync();
+        Workspace.SetActiveTab(id);
+    }
+
+    private void SetConnection(QueryTab tab, ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        tab.ConnectionId = string.IsNullOrEmpty(value) ? null : value;
+    }
+
+    private async Task SaveEditorAsync()
+    {
+        if (_editor is not null && Workspace.ActiveTab is { } tab)
+        {
+            tab.Sql = await _editor.GetValueAsync();
+        }
+    }
+
+    private async Task<IReadOnlyList<CompletionEntry>> GetCompletionsAsync(string text, int offset)
+    {
+        var connection = Workspace.ActiveTab is { } tab ? ConnectionOf(tab) : null;
+        var provider = connection?.Connection.GetService<ISqlCompletionProvider>();
+        if (provider is null)
+        {
+            return [];
+        }
+
+        var items = await provider.GetCompletionsAsync(text, offset, CancellationToken.None);
+        return items.Select(i => new CompletionEntry(i.Label, i.Kind.ToString(), i.Detail)).ToList();
+    }
+
+    private async Task<string> ResolveSqlAsync()
+    {
+        if (_editor is null)
+        {
+            return string.Empty;
+        }
+
+        var selected = await _editor.GetSelectedTextAsync();
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            return selected;
+        }
+
+        var full = await _editor.GetValueAsync();
+        var offset = await _editor.GetCursorOffsetAsync();
+        return MySqlStatementSplitter.StatementAt(full, offset) ?? full;
+    }
+
+    private async Task RunAsync()
+    {
+        if (Workspace.ActiveTab is not { } tab)
+        {
+            return;
+        }
+
+        var connection = ConnectionOf(tab);
+        if (connection is null)
+        {
+            return;
+        }
+
+        await SaveEditorAsync();
+        var sql = await ResolveSqlAsync();
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            return;
+        }
+
+        _running = true;
+        tab.Error = null;
+        tab.Status = null;
+        tab.Grid = null;
+        try
+        {
+            var request = new QueryRequest(sql, RowLimit: tab.RowLimit);
+            var execution = await connection.Connection.QueryExecutor.ExecuteAsync(request, CancellationToken.None);
+
+            var resultSet = execution.ResultSets.FirstOrDefault();
+            if (resultSet is not null)
+            {
+                tab.Grid = await ResultGridBuilder.BuildAsync(resultSet, CancellationToken.None);
+                tab.Status = $"{tab.Grid.Rows.Count} rows in {execution.Elapsed.TotalMilliseconds:F0} ms";
+            }
+            else
+            {
+                tab.Status = $"{execution.AffectedCount ?? 0} affected in {execution.Elapsed.TotalMilliseconds:F0} ms";
+            }
+        }
+        catch (QueryExecutionException ex)
+        {
+            tab.Error = ex.Message;
+        }
+        finally
+        {
+            _running = false;
+        }
+    }
+}

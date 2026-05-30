@@ -1,7 +1,9 @@
 ﻿using Lexql.App.Services;
 using Lexql.Core.Abstractions;
+using Lexql.Core.Connections;
 using Lexql.Providers.MySql;
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Storage;
 
 namespace Lexql.App;
 
@@ -20,7 +22,17 @@ public static class MauiProgram
 		builder.Services.AddMauiBlazorWebView();
 
 		builder.Services.AddSingleton<IDatabaseProvider, MySqlDatabaseProvider>();
-		builder.Services.AddSingleton<ConnectionSession>();
+		builder.Services.AddSingleton<IConnectionProfileStore>(sp =>
+		{
+			var provider = sp.GetRequiredService<IDatabaseProvider>();
+			var secretKeys = provider.DescribeConnectionFields()
+				.Where(f => f.Kind == ConnectionFieldKind.Password)
+				.Select(f => f.Key)
+				.ToHashSet(StringComparer.OrdinalIgnoreCase);
+			var path = Path.Combine(FileSystem.AppDataDirectory, "connections.json");
+			return new JsonConnectionProfileStore(path, secretKeys);
+		});
+		builder.Services.AddSingleton<WorkspaceState>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();
