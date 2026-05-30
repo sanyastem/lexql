@@ -165,7 +165,7 @@
 
         var full = await _editor.GetValueAsync();
         var offset = await _editor.GetCursorOffsetAsync();
-        return SqlStatementSplitter.StatementAt(full, offset) ?? full;
+        return MySqlStatementSplitter.StatementAt(full, offset) ?? full;
     }
 
     private async Task RunAsync()

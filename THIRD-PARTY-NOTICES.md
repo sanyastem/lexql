@@ -17,9 +17,16 @@ license. This file satisfies the attribution requirements of those licenses.
 
 ### ANTLR4 (runtime)
 - License: BSD-3-Clause
-- Use: parser runtime for the SQL lexer/parser.
+- Use: parser runtime for the SQL lexer/parser (Antlr4.Runtime.Standard).
 - Copyright © The ANTLR Project.
 - https://github.com/antlr/antlr4
+
+### Antlr4BuildTasks
+- License: BSD-3-Clause
+- Use: build-time only — generates the C# lexer from the `.g4` grammar during
+  the build. Not redistributed in the application output.
+- Copyright © Ken Domino and contributors.
+- https://github.com/kaby76/Antlr4BuildTasks
 
 ### MySQL ANTLR grammar (Positive-Technologies)
 - License: MIT
