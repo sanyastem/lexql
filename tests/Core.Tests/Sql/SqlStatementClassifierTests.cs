@@ -38,4 +38,22 @@ public class SqlStatementClassifierTests
     {
         Assert.False(SqlStatementClassifier.ContainsWrite("SELECT 'DELETE FROM t' AS s"));
     }
+
+    [Fact]
+    public void IsAllowedInReadOnly_AllowsOnlyReads()
+    {
+        Assert.True(SqlStatementClassifier.IsAllowedInReadOnly("SELECT 1; SHOW TABLES"));
+    }
+
+    [Fact]
+    public void IsAllowedInReadOnly_FailsClosedForUnknownStatements()
+    {
+        Assert.False(SqlStatementClassifier.IsAllowedInReadOnly("CALL do_something()"));
+    }
+
+    [Fact]
+    public void IsAllowedInReadOnly_EmptyIsNotAllowed()
+    {
+        Assert.False(SqlStatementClassifier.IsAllowedInReadOnly("   "));
+    }
 }

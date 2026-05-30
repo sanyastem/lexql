@@ -9,14 +9,14 @@ public enum SqlStatementKind
 
 public static class SqlStatementClassifier
 {
-    private static readonly HashSet<string> WriteKeywords = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> WriteKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
         "INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE",
         "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME",
         "GRANT", "REVOKE", "LOAD", "CALL", "LOCK", "FLUSH", "IMPORT",
     };
 
-    private static readonly HashSet<string> ReadKeywords = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> ReadKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
         "SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "WITH", "USE", "SET", "TABLE", "VALUES",
     };
@@ -44,5 +44,12 @@ public static class SqlStatementClassifier
         ArgumentNullException.ThrowIfNull(sql);
         return MySqlStatementSplitter.SplitStatements(sql)
             .Any(statement => Classify(statement.Text) == SqlStatementKind.Write);
+    }
+
+    public static bool IsAllowedInReadOnly(string sql)
+    {
+        ArgumentNullException.ThrowIfNull(sql);
+        var statements = MySqlStatementSplitter.SplitStatements(sql);
+        return statements.Count > 0 && statements.All(statement => Classify(statement.Text) == SqlStatementKind.Read);
     }
 }

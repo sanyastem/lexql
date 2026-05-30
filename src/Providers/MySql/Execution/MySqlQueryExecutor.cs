@@ -23,7 +23,7 @@ public sealed class MySqlQueryExecutor : IQueryExecutor
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (_options.ReadOnly && SqlStatementClassifier.ContainsWrite(request.Text))
+        if (_options.ReadOnly && !SqlStatementClassifier.IsAllowedInReadOnly(request.Text))
         {
             throw new ReadOnlyViolationException();
         }
