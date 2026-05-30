@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  core:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,11 +17,21 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore
-        run: dotnet restore Lexql.slnx
+      - name: Test (Core, Core.Relational, Providers)
+        run: dotnet test tests/Core.Tests/Lexql.Core.Tests.csproj --configuration Release --verbosity normal
 
-      - name: Build
-        run: dotnet build Lexql.slnx --configuration Release --no-restore
+  app:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Test
-        run: dotnet test Lexql.slnx --configuration Release --no-build --verbosity normal
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui
+
+      - name: Build desktop app (Windows)
+        run: dotnet build src/App/Lexql.App.csproj --configuration Release -f net10.0-windows10.0.19041.0

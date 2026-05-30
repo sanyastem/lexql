@@ -1,0 +1,53 @@
+<li class="tree-node">
+    <span class="tree-label @(Node.HasChildren ? "expandable" : null)" @onclick="ToggleAsync">
+        <span class="tree-glyph">@Glyph</span>
+        <span class="tree-name">@Node.Name</span>
+        <span class="tree-kind">@Node.Kind</span>
+    </span>
+
+    @if (_expanded && _children is not null)
+    {
+        <ul class="tree-children">
+            @foreach (var child in _children)
+            {
+                <ObjectTreeNode Node="child" Explorer="Explorer" />
+            }
+        </ul>
+    }
+</li>
+
+@code {
+    [Parameter, EditorRequired]
+    public DatabaseObjectNode Node { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public IObjectExplorer Explorer { get; set; } = default!;
+
+    private bool _expanded;
+    private bool _loading;
+    private IReadOnlyList<DatabaseObjectNode>? _children;
+
+    private string Glyph => !Node.HasChildren ? "•" : _expanded ? "▾" : "▸";
+
+    private async Task ToggleAsync()
+    {
+        if (!Node.HasChildren || _loading)
+        {
+            return;
+        }
+
+        _expanded = !_expanded;
+        if (_expanded && _children is null)
+        {
+            _loading = true;
+            try
+            {
+                _children = await Explorer.GetChildrenAsync(Node, CancellationToken.None);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+    }
+}

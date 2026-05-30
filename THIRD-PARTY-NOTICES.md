@@ -58,6 +58,18 @@ license. This file satisfies the attribution requirements of those licenses.
 - Copyright © .NET Foundation and contributors.
 - https://github.com/dotnet/efcore
 
+### Bootstrap
+- License: MIT
+- Use: base CSS for the Blazor UI (bundled in `src/App/wwwroot/lib/bootstrap`).
+- Copyright © The Bootstrap Authors.
+- https://github.com/twbs/bootstrap
+
+### Open Sans
+- License: Apache-2.0
+- Use: bundled UI font (`src/App/Resources/Fonts/OpenSans-Regular.ttf`).
+- Copyright © Steve Matteson / Google.
+- https://fonts.google.com/specimen/Open+Sans
+
 ---
 
 ## Test dependencies
@@ -79,6 +91,6 @@ license. This file satisfies the attribution requirements of those licenses.
 - No GPL or other copyleft dependency is included. In particular, Oracle's
   `MySql.Data` (GPL) is deliberately NOT used.
 - When adding a new dependency: confirm MIT/BSD/Apache, then add an entry here
-  in the same change. This is required by CONTRIBUTING.md.
+  in the same change. See `CONTRIBUTING.md`.
 - UI stack is decided: MAUI Blazor Hybrid (Monaco + Tabulator). Avalonia was not chosen.
 - Future DB providers (SQLite, MongoDB) will add their own driver entries here when implemented.

@@ -1,0 +1,102 @@
+@page "/"
+@inject ConnectionSession Session
+
+<div class="workspace">
+    <section class="panel connect-panel">
+        <h2>Connection</h2>
+        <div class="fields">
+            @foreach (var field in Session.Fields)
+            {
+                <label class="field">
+                    <span class="field-label">@field.Label@(field.Required ? " *" : null)</span>
+                    <input class="field-input" type="@InputType(field)" @bind="_values[field.Key]" />
+                </label>
+            }
+        </div>
+
+        <div class="actions">
+            <button class="btn-connect" @onclick="ConnectAsync" disabled="@_busy">
+                @(_busy ? "Connecting…" : "Connect")
+            </button>
+            @if (Session.IsConnected)
+            {
+                <button class="btn-disconnect" @onclick="DisconnectAsync" disabled="@_busy">Disconnect</button>
+            }
+        </div>
+
+        @if (Session.Error is not null)
+        {
+            <p class="status error">@Session.Error</p>
+        }
+        else if (Session.IsConnected)
+        {
+            <p class="status ok">Connected to @Session.ConnectedTo</p>
+        }
+    </section>
+
+    <section class="panel tree-panel">
+        <h2>Objects</h2>
+        @if (_roots is not null)
+        {
+            <ul class="tree-root">
+                @foreach (var root in _roots)
+                {
+                    <ObjectTreeNode Node="root" Explorer="Session.Current!.ObjectExplorer" />
+                }
+            </ul>
+        }
+        else if (Session.IsConnected)
+        {
+            <p class="status">Loading schema…</p>
+        }
+        else
+        {
+            <p class="status muted">Not connected.</p>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly Dictionary<string, string?> _values = new();
+    private IReadOnlyList<DatabaseObjectNode>? _roots;
+    private bool _busy;
+
+    protected override void OnInitialized()
+    {
+        foreach (var field in Session.Fields)
+        {
+            _values[field.Key] = field.Default;
+        }
+    }
+
+    private static string InputType(ConnectionField field) => field.Kind switch
+    {
+        ConnectionFieldKind.Password => "password",
+        ConnectionFieldKind.Number => "number",
+        _ => "text",
+    };
+
+    private async Task ConnectAsync()
+    {
+        _busy = true;
+        _roots = null;
+        try
+        {
+            var connected = await Session.ConnectAsync(_values, CancellationToken.None);
+            if (connected && Session.Current is not null)
+            {
+                _roots = await Session.Current.ObjectExplorer.GetRootsAsync(CancellationToken.None);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DisconnectAsync()
+    {
+        await Session.DisconnectAsync();
+        _roots = null;
+    }
+}
