@@ -89,6 +89,12 @@ license. This file satisfies the attribution requirements of those licenses.
 - License: BSD-3-Clause
 - https://github.com/nsubstitute/NSubstitute
 
+### Testcontainers (Testcontainers.MySql)
+- License: MIT
+- Use: integration tests — spins up disposable MySQL 5.7 / 8.0 Docker containers.
+- Copyright © Andre Hofmeister and contributors.
+- https://github.com/testcontainers/testcontainers-dotnet
+
 ---
 
 ## Notes

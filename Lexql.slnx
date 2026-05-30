@@ -17,4 +17,7 @@
   <Folder Name="/tests/Core.Tests/">
     <Project Path="tests/Core.Tests/Lexql.Core.Tests.csproj" />
   </Folder>
+  <Folder Name="/tests/Integration.Tests/">
+    <Project Path="tests/Integration.Tests/Lexql.Integration.Tests.csproj" />
+  </Folder>
 </Solution>

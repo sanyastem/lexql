@@ -26,6 +26,25 @@ jobs:
       - name: Test (Core, Core.Relational, Providers)
         run: dotnet test tests/Core.Tests/Lexql.Core.Tests.csproj --configuration Release --verbosity normal
 
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Java (ANTLR parser generation)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Integration tests (Testcontainers MySQL 5.7 + 8.0)
+        run: dotnet test tests/Integration.Tests/Lexql.Integration.Tests.csproj --configuration Release --verbosity normal
+
   app:
     runs-on: windows-latest
     steps:
