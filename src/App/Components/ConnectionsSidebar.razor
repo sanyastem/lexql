@@ -1,16 +1,11 @@
 @inject WorkspaceState Workspace
 @inject LocalizationService L
+@implements IDisposable
 
 <aside class="sidebar">
     <div class="sidebar-header">
         <span>@L["app.servers"]</span>
         <div class="header-actions">
-            <select class="lang-select" value="@L.CurrentLanguage" @onchange="OnLanguageChanged">
-                @foreach (var language in L.Languages)
-                {
-                    <option value="@language.Code">@language.Name</option>
-                }
-            </select>
             <button class="btn-add" title="@L["conn.newConnection"]" @onclick="ShowNewForm">＋</button>
         </div>
     </div>
@@ -34,7 +29,7 @@
     <div class="servers">
         @if (Workspace.Connections.Count == 0)
         {
-            <p class="muted small">@L["app.noConnections"]</p>
+            <div class="sidebar-empty">@L["app.noConnections"]</div>
         }
         @foreach (var server in Workspace.Connections)
         {
@@ -71,6 +66,16 @@
     protected override void OnInitialized()
     {
         _showForm = Workspace.Connections.Count == 0 && Workspace.SavedProfiles.Count == 0;
+        Workspace.Changed += OnChanged;
+        L.Changed += OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Workspace.Changed -= OnChanged;
+        L.Changed -= OnChanged;
     }
 
     private void ShowNewForm()
@@ -86,6 +91,4 @@
     }
 
     private void HideForm() => _showForm = false;
-
-    private void OnLanguageChanged(ChangeEventArgs e) => L.SetLanguage(e.Value?.ToString() ?? "en");
 }

@@ -3,6 +3,8 @@
   "app.saved": "Zapisane",
   "app.noConnections": "Brak otwartych połączeń.",
   "app.language": "Język",
+  "app.theme": "Przełącz motyw",
+  "query.close": "Zamknij kartę",
   "conn.newConnection": "Nowe połączenie",
   "conn.connect": "Połącz",
   "conn.connecting": "Łączenie…",

@@ -3,6 +3,8 @@
   "app.saved": "Saved",
   "app.noConnections": "No open connections.",
   "app.language": "Language",
+  "app.theme": "Toggle theme",
+  "query.close": "Close tab",
   "conn.newConnection": "New connection",
   "conn.connect": "Connect",
   "conn.connecting": "Connecting…",

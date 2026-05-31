@@ -1,5 +1,6 @@
 @inject WorkspaceState Workspace
 @inject LocalizationService L
+@implements IDisposable
 
 <div class="connect-form">
     <div class="fields">
@@ -62,7 +63,12 @@
 
         _readOnly = Template?.ReadOnly ?? false;
         _rowLimit = Template?.DefaultRowLimit;
+        L.Changed += OnChanged;
     }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => L.Changed -= OnChanged;
 
     private static string InputType(ConnectionField field) => field.Kind switch
     {

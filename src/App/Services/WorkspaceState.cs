@@ -39,6 +39,24 @@ public sealed class WorkspaceState
 
     public event Action? Changed;
 
+    public Func<Task>? FlushActiveTab { get; set; }
+
+    public async Task SwitchTabAsync(string id)
+    {
+        if (id == ActiveTabId)
+        {
+            return;
+        }
+
+        if (FlushActiveTab is not null)
+        {
+            await FlushActiveTab();
+        }
+
+        ActiveTabId = id;
+        Notify();
+    }
+
     public async Task InitializeAsync()
     {
         SavedProfiles = (await _store.LoadAllAsync(CancellationToken.None)).ToList();

@@ -1,4 +1,4 @@
-﻿namespace Lexql.App;
+namespace Lexql.App;
 
 public partial class MainPage : ContentPage
 {

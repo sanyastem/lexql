@@ -15,9 +15,17 @@
     {
         Workspace.Changed += OnChanged;
         Localization.Changed += OnChanged;
-        await Localization.InitializeAsync();
-        await History.InitializeAsync(CancellationToken.None);
-        await Workspace.InitializeAsync();
+        try
+        {
+            await Localization.InitializeAsync();
+            await History.InitializeAsync(CancellationToken.None);
+            await Workspace.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Append("Home.OnInitializedAsync EXCEPTION: " + ex);
+            throw;
+        }
     }
 
     private void OnChanged() => InvokeAsync(StateHasChanged);

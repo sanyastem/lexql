@@ -6,21 +6,9 @@
 @inject WorkspaceState Workspace
 @inject LocalizationService L
 @inject IQueryHistoryStore History
+@implements IDisposable
 
 <main class="editor-area">
-    <div class="tab-strip">
-        @foreach (var tab in Workspace.Tabs)
-        {
-            <div class="tab @(tab.Id == Workspace.ActiveTabId ? "active" : null)" @onclick="() => SwitchTabAsync(tab.Id)">
-                <span>@tab.Title</span>
-                <button class="btn-x" @onclick:stopPropagation="true" @onclick="() => Workspace.CloseTab(tab.Id)">×</button>
-            </div>
-        }
-        <button class="tab-add" title="@L["query.newQuery"]" @onclick="() => Workspace.AddTab()"
-                disabled="@(Workspace.Connections.Count == 0)">＋</button>
-        <button class="tab-add history-toggle" title="@L["history.title"]" @onclick="ToggleHistoryAsync">🕘</button>
-    </div>
-
     @if (_showHistory)
     {
         <section class="panel history-panel">
@@ -63,6 +51,7 @@
                     }
                 </select>
                 <span class="hint">@L["query.hint"]</span>
+                <button class="icon-btn history-toggle" title="@L["history.title"]" @onclick="ToggleHistoryAsync">🕘</button>
             </div>
 
             <SqlEditor @key="active.Id" @ref="_editor"
@@ -147,7 +136,10 @@
     }
     else
     {
-        <p class="status muted">@L["query.empty"]</p>
+        <div class="empty-state">
+            <div class="empty-glyph">&gt;_</div>
+            <p>@L["query.empty"]</p>
+        </div>
     }
 </main>
 
@@ -162,6 +154,26 @@
     private string _saveName = string.Empty;
     private IReadOnlyList<QueryHistoryEntry> _history = [];
     private IReadOnlyList<SavedQuery> _saved = [];
+
+    protected override void OnInitialized()
+    {
+        Workspace.FlushActiveTab = SaveEditorAsync;
+        Workspace.Changed += OnChanged;
+        L.Changed += OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (Workspace.FlushActiveTab == SaveEditorAsync)
+        {
+            Workspace.FlushActiveTab = null;
+        }
+
+        Workspace.Changed -= OnChanged;
+        L.Changed -= OnChanged;
+    }
 
     private void Stop() => _cts?.Cancel();
 
@@ -210,12 +222,6 @@
     private bool _applying;
 
     private ServerConnection? ConnectionOf(QueryTab tab) => Workspace.ConnectionFor(tab);
-
-    private async Task SwitchTabAsync(string id)
-    {
-        await SaveEditorAsync();
-        Workspace.SetActiveTab(id);
-    }
 
     private void SetConnection(QueryTab tab, ChangeEventArgs e)
     {

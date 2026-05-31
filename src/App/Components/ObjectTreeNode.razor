@@ -1,8 +1,12 @@
 <li class="tree-node">
     <span class="tree-label @(Node.HasChildren ? "expandable" : null)" @onclick="ToggleAsync">
-        <span class="tree-glyph">@Glyph</span>
+        <span class="tree-chevron">@(Node.HasChildren ? (_expanded ? "▾" : "▸") : null)</span>
+        <span class="tree-icon">@TypeIcon</span>
         <span class="tree-name">@Node.Name</span>
-        <span class="tree-kind">@Node.Kind</span>
+        @if (_loading)
+        {
+            <span class="tree-loading">…</span>
+        }
     </span>
 
     @if (_expanded && _children is not null)
@@ -27,7 +31,16 @@
     private bool _loading;
     private IReadOnlyList<DatabaseObjectNode>? _children;
 
-    private string Glyph => !Node.HasChildren ? "•" : _expanded ? "▾" : "▸";
+    private string TypeIcon => Node.Kind switch
+    {
+        DatabaseObjectKind.Namespace => "🗂️",
+        DatabaseObjectKind.Container => "🗃️",
+        DatabaseObjectKind.View => "👁️",
+        DatabaseObjectKind.Routine => "⚙️",
+        DatabaseObjectKind.Trigger => "⚡",
+        DatabaseObjectKind.Field => "🔹",
+        _ => "📁",
+    };
 
     private async Task ToggleAsync()
     {

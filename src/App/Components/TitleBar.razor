@@ -1,0 +1,124 @@
+@inject WorkspaceState Workspace
+@inject LocalizationService L
+@inject ThemeState Theme
+@inject IWindowControls Window
+@inject IJSRuntime JS
+@implements IDisposable
+
+<header class="titlebar">
+    <div class="titlebar-logo" data-drag>
+        <span class="logo-mark">&gt;_</span>
+        <span class="logo-text">Lexql</span>
+    </div>
+
+    <div class="titlebar-tabs">
+        @foreach (var tab in Workspace.Tabs)
+        {
+            <div class="titlebar-tab @(tab.Id == Workspace.ActiveTabId ? "active" : null)"
+                 @onclick="() => SwitchAsync(tab.Id)">
+                <span class="tab-title">@tab.Title</span>
+                <button class="tab-close" title="@L["query.close"]"
+                        @onclick:stopPropagation="true" @onclick="() => Workspace.CloseTab(tab.Id)">×</button>
+            </div>
+        }
+        <button class="tab-add" title="@L["query.newQuery"]"
+                @onclick="() => Workspace.AddTab()" disabled="@(Workspace.Connections.Count == 0)">＋</button>
+    </div>
+
+    <div class="titlebar-drag" data-drag></div>
+
+    <div class="titlebar-tools">
+        <select class="lang-select" title="@L["app.language"]" value="@L.CurrentLanguage" @onchange="OnLanguageChanged">
+            @foreach (var language in L.Languages)
+            {
+                <option value="@language.Code">@language.Name</option>
+            }
+        </select>
+        <button class="theme-toggle" title="@L["app.theme"]" @onclick="ToggleThemeAsync">
+            @(Theme.IsDark ? "☀" : "🌙")
+        </button>
+    </div>
+
+    @if (Window.Supported)
+    {
+        <div class="win-buttons">
+            <button class="win-btn" title="—" @onclick="() => Window.Minimize()">
+                <svg viewBox="0 0 12 12" aria-hidden="true"><line x1="2" y1="6" x2="10" y2="6" /></svg>
+            </button>
+            <button class="win-btn" title="□" @onclick="() => Window.ToggleMaximize()">
+                <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2.5" width="7" height="7" rx="1" /></svg>
+            </button>
+            <button class="win-btn close" title="✕" @onclick="() => Window.Close()">
+                <svg viewBox="0 0 12 12" aria-hidden="true"><line x1="3" y1="3" x2="9" y2="9" /><line x1="9" y1="3" x2="3" y2="9" /></svg>
+            </button>
+        </div>
+    }
+</header>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Workspace.Changed += OnChanged;
+        Theme.Changed += OnChanged;
+        L.Changed += OnChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            var saved = await JS.InvokeAsync<string>("lexql.getTheme");
+            Theme.Initialize(saved);
+        }
+        catch (Exception)
+        {
+        }
+
+        if (Window.Supported)
+        {
+            try
+            {
+                _self = DotNetObjectReference.Create(this);
+                _drag = await JS.InvokeAsync<IJSObjectReference>("import", "./js/titlebar.js");
+                await _drag.InvokeVoidAsync("init", _self);
+            }
+            catch (Exception)
+            {
+            }
+        }
+    }
+
+    [JSInvokable]
+    public int[] GetWindowPosition() => Window.GetPosition();
+
+    [JSInvokable]
+    public void MoveWindow(int x, int y) => Window.MoveTo(x, y);
+
+    private Task SwitchAsync(string id) => Workspace.SwitchTabAsync(id);
+
+    private async Task ToggleThemeAsync()
+    {
+        var theme = Theme.Toggle();
+        await JS.InvokeVoidAsync("lexql.setTheme", theme);
+    }
+
+    private void OnLanguageChanged(ChangeEventArgs e) => L.SetLanguage(e.Value?.ToString() ?? "en");
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private IJSObjectReference? _drag;
+    private DotNetObjectReference<TitleBar>? _self;
+
+    public void Dispose()
+    {
+        Workspace.Changed -= OnChanged;
+        Theme.Changed -= OnChanged;
+        L.Changed -= OnChanged;
+        _self?.Dispose();
+    }
+}

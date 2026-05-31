@@ -2,7 +2,7 @@ let editor = null;
 let completionRef = null;
 let completionRegistered = false;
 
-export function init(host, dotnetRef, initialValue) {
+export function init(host, dotnetRef, initialValue, theme) {
     window.MonacoEnvironment = { getWorkerUrl: () => "data:text/javascript;charset=utf-8," };
     completionRef = dotnetRef;
 
@@ -13,7 +13,7 @@ export function init(host, dotnetRef, initialValue) {
                 editor = monaco.editor.create(host, {
                     value: initialValue ?? "",
                     language: "sql",
-                    theme: "vs",
+                    theme: monacoTheme(theme),
                     automaticLayout: true,
                     minimap: { enabled: false },
                     lineNumbers: "on",
@@ -68,6 +68,16 @@ function registerCompletion() {
             };
         },
     });
+}
+
+function monacoTheme(theme) {
+    return theme === "light" ? "vs" : "vs-dark";
+}
+
+export function setTheme(theme) {
+    if (window.monaco) {
+        monaco.editor.setTheme(monacoTheme(theme));
+    }
 }
 
 function kindOf(kind) {

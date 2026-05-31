@@ -3,6 +3,8 @@
   "app.saved": "Сохранённые",
   "app.noConnections": "Нет открытых подключений.",
   "app.language": "Язык",
+  "app.theme": "Сменить тему",
+  "query.close": "Закрыть вкладку",
   "conn.newConnection": "Новое подключение",
   "conn.connect": "Подключиться",
   "conn.connecting": "Подключение…",

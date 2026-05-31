@@ -5,10 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Lexql</title>
     <base href="/" />
+    <script>
+        (function () {
+            var theme = 'dark';
+            try { theme = localStorage.getItem('lexql-theme') || 'dark'; } catch (e) { }
+            document.documentElement.dataset.theme = theme;
+            window.lexql = {
+                getTheme: function () { return document.documentElement.dataset.theme || 'dark'; },
+                setTheme: function (value) {
+                    document.documentElement.dataset.theme = value;
+                    try { localStorage.setItem('lexql-theme', value); } catch (e) { }
+                }
+            };
+        })();
+    </script>
     <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="lib/tabulator/tabulator.min.css" />
     <link rel="stylesheet" href="app.css" />
-    <link rel="stylesheet" href="Lexql.App.styles.css" />
     <link rel="icon" href="data:,">
 </head>
 
