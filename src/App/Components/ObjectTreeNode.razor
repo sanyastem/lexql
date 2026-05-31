@@ -1,7 +1,7 @@
 <li class="tree-node">
     <span class="tree-label @(Node.HasChildren ? "expandable" : null)" @onclick="ToggleAsync">
         <span class="tree-chevron">@(Node.HasChildren ? (_expanded ? "▾" : "▸") : null)</span>
-        <span class="tree-icon">@TypeIcon</span>
+        <span class="tree-icon @(IsAccent ? "accent" : null)"><TreeIcon Kind="@IconName" /></span>
         <span class="tree-name">@Node.Name</span>
         @if (_loading)
         {
@@ -31,16 +31,18 @@
     private bool _loading;
     private IReadOnlyList<DatabaseObjectNode>? _children;
 
-    private string TypeIcon => Node.Kind switch
+    private string IconName => Node.Kind switch
     {
-        DatabaseObjectKind.Namespace => "🗂️",
-        DatabaseObjectKind.Container => "🗃️",
-        DatabaseObjectKind.View => "👁️",
-        DatabaseObjectKind.Routine => "⚙️",
-        DatabaseObjectKind.Trigger => "⚡",
-        DatabaseObjectKind.Field => "🔹",
-        _ => "📁",
+        DatabaseObjectKind.Namespace => "namespace",
+        DatabaseObjectKind.Container => "container",
+        DatabaseObjectKind.View => "view",
+        DatabaseObjectKind.Routine => "routine",
+        DatabaseObjectKind.Trigger => "trigger",
+        DatabaseObjectKind.Field => "field",
+        _ => "folder",
     };
+
+    private bool IsAccent => Node.Kind is DatabaseObjectKind.Namespace or DatabaseObjectKind.Container;
 
     private async Task ToggleAsync()
     {

@@ -2,41 +2,61 @@
 @inject LocalizationService L
 @implements IDisposable
 
-<div class="connect-form">
-    <div class="fields">
-        @foreach (var field in Workspace.Fields)
-        {
+<div class="modal-overlay" @onclick="Cancel">
+    <div class="modal connect-modal" @onclick:stopPropagation="true">
+        <h3>@(Template is null ? L["conn.newConnection"] : Template.Name)</h3>
+
+        <div class="fields">
             <label class="field">
-                <span class="field-label">@field.Label@(field.Required ? " *" : null)</span>
-                <input class="field-input" type="@InputType(field)" @bind="_values[field.Key]" />
+                <span class="field-label">@L["conn.name"]</span>
+                <input class="field-input" @bind="_name" placeholder="@L["conn.namePlaceholder"]" />
             </label>
+
+            @foreach (var field in BasicFields)
+            {
+                <ConnectionFieldEditor Field="field" Values="_values" />
+            }
+        </div>
+
+        <div class="field-inline-row">
+            <label class="field-inline">
+                <input type="checkbox" @bind="_readOnly" /> @L["conn.readOnly"]
+            </label>
+            <label class="field-inline">
+                @L["conn.rowLimit"]
+                <input class="field-input limit-input" type="number" min="1" @bind="_rowLimit" />
+            </label>
+        </div>
+
+        @if (AdvancedFields.Any())
+        {
+            <details class="advanced">
+                <summary>@L["conn.advanced"]</summary>
+                <div class="fields">
+                    @foreach (var field in AdvancedFields)
+                    {
+                        <ConnectionFieldEditor Field="field" Values="_values" />
+                    }
+                </div>
+            </details>
         }
+
+        @if (Workspace.LastError is not null)
+        {
+            <p class="status error">@Workspace.LastError</p>
+        }
+
+        <div class="actions">
+            <label class="field-inline save-toggle">
+                <input type="checkbox" @bind="_save" /> @L["conn.save"]
+            </label>
+            <span class="spacer"></span>
+            <button class="btn-secondary" @onclick="Cancel" disabled="@_busy">@L["conn.cancel"]</button>
+            <button class="btn-connect" @onclick="ConnectAsync" disabled="@_busy">
+                @(_busy ? L["conn.connecting"] : L["conn.connect"])
+            </button>
+        </div>
     </div>
-
-    <label class="field-inline">
-        <input type="checkbox" @bind="_readOnly" /> @L["conn.readOnly"]
-    </label>
-
-    <label class="field">
-        <span class="field-label">@L["conn.rowLimit"]</span>
-        <input class="field-input" type="number" min="1" @bind="_rowLimit" />
-    </label>
-
-    <label class="field-inline">
-        <input type="checkbox" @bind="_save" /> @L["conn.save"]
-    </label>
-
-    <div class="actions">
-        <button class="btn-connect" @onclick="ConnectAsync" disabled="@_busy">
-            @(_busy ? L["conn.connecting"] : L["conn.connect"])
-        </button>
-        <button class="btn-secondary" @onclick="Cancel" disabled="@_busy">@L["conn.cancel"]</button>
-    </div>
-
-    @if (Workspace.LastError is not null)
-    {
-        <p class="status error">@Workspace.LastError</p>
-    }
 </div>
 
 @code {
@@ -47,6 +67,7 @@
     public ConnectionProfile? Template { get; set; }
 
     private readonly Dictionary<string, string?> _values = new();
+    private string _name = string.Empty;
     private bool _save;
     private bool _readOnly;
     private int? _rowLimit;
@@ -61,8 +82,10 @@
                 : field.Default;
         }
 
+        _name = Template?.Name ?? string.Empty;
         _readOnly = Template?.ReadOnly ?? false;
         _rowLimit = Template?.DefaultRowLimit;
+        _save = true;
         L.Changed += OnChanged;
     }
 
@@ -70,21 +93,28 @@
 
     public void Dispose() => L.Changed -= OnChanged;
 
-    private static string InputType(ConnectionField field) => field.Kind switch
-    {
-        ConnectionFieldKind.Password => "password",
-        ConnectionFieldKind.Number => "number",
-        _ => "text",
-    };
+    private IEnumerable<ConnectionField> BasicFields => Workspace.Fields.Where(f => !f.Advanced);
+
+    private IEnumerable<ConnectionField> AdvancedFields => Workspace.Fields.Where(f => f.Advanced);
 
     private async Task ConnectAsync()
     {
         _busy = true;
         try
         {
-            var name = _values.TryGetValue("host", out var host) && !string.IsNullOrWhiteSpace(host)
-                ? host!
-                : Workspace.ProviderId;
+            string name;
+            if (!string.IsNullOrWhiteSpace(_name))
+            {
+                name = _name.Trim();
+            }
+            else if (_values.TryGetValue("host", out var host) && !string.IsNullOrWhiteSpace(host))
+            {
+                name = host;
+            }
+            else
+            {
+                name = Workspace.ProviderId;
+            }
             var profile = new ConnectionProfile(
                 Workspace.ProviderId, name, new Dictionary<string, string?>(_values),
                 ReadOnly: _readOnly, DefaultRowLimit: _rowLimit);

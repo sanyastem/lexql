@@ -15,44 +15,23 @@
         <ConnectForm @key="FormKey" Template="_template" OnDone="HideForm" />
     }
 
-    @if (Workspace.SavedProfiles.Count > 0)
-    {
-        <div class="saved">
-            <div class="muted small">@L["app.saved"]</div>
-            @foreach (var profile in Workspace.SavedProfiles)
-            {
-                <button class="profile" @onclick="() => OpenTemplate(profile)">@profile.Name</button>
-            }
-        </div>
-    }
-
     <div class="servers">
-        @if (Workspace.Connections.Count == 0)
+        @if (Workspace.SavedProfiles.Count == 0 && Workspace.Connections.Count == 0)
         {
-            <div class="sidebar-empty">@L["app.noConnections"]</div>
-        }
-        @foreach (var server in Workspace.Connections)
-        {
-            <div class="server @(server.Id == Workspace.ActiveConnectionId ? "active" : null)">
-                <div class="server-head" @onclick="() => Workspace.SetActiveConnection(server.Id)">
-                    <span class="server-name">
-                        @server.Name
-                        @if (server.Connection.IsReadOnly)
-                        {
-                            <span class="ro-badge" title="Read-only">RO</span>
-                        }
-                    </span>
-                    <button class="btn-x" title="@L["conn.disconnect"]"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => Workspace.DisconnectAsync(server.Id)">×</button>
-                </div>
-                <ul class="tree-root">
-                    @foreach (var root in server.Roots)
-                    {
-                        <ObjectTreeNode Node="root" Explorer="server.Connection.ObjectExplorer" />
-                    }
-                </ul>
+            <div class="sidebar-empty">
+                <p>@L["conn.addHint"]</p>
+                <button class="btn-add-server" @onclick="ShowNewForm">＋ @L["conn.addServer"]</button>
             </div>
+        }
+
+        @foreach (var profile in Workspace.SavedProfiles)
+        {
+            <ServerNode @key="@("p:" + profile.Name)" Name="@profile.Name" Profile="profile" OnEdit="OpenTemplate" />
+        }
+
+        @foreach (var server in AdHocConnections)
+        {
+            <ServerNode @key="@("c:" + server.Id)" Name="@server.Name" />
         }
     </div>
 </aside>
@@ -63,9 +42,11 @@
 
     private string FormKey => _template?.Name ?? "new";
 
+    private IEnumerable<ServerConnection> AdHocConnections =>
+        Workspace.Connections.Where(c => !Workspace.SavedProfiles.Any(p => p.Name == c.Name));
+
     protected override void OnInitialized()
     {
-        _showForm = Workspace.Connections.Count == 0 && Workspace.SavedProfiles.Count == 0;
         Workspace.Changed += OnChanged;
         L.Changed += OnChanged;
     }

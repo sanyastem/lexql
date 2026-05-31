@@ -1,0 +1,101 @@
+@inject WorkspaceState Workspace
+@inject LocalizationService L
+@implements IDisposable
+
+<div class="server @(IsActive ? "active" : null)">
+    <div class="server-head" @onclick="ToggleAsync">
+        <span class="server-main">
+            <span class="tree-chevron">@(Expanded ? "▾" : "▸")</span>
+            <span class="tree-icon accent"><TreeIcon Kind="server" /></span>
+            <span class="server-name">@Name</span>
+            @if (_connecting)
+            {
+                <span class="tree-loading">…</span>
+            }
+        </span>
+        <span class="server-actions" @onclick:stopPropagation="true">
+            @if (Connection is { } conn)
+            {
+                @if (conn.Connection.IsReadOnly)
+                {
+                    <span class="ro-badge" title="Read-only">RO</span>
+                }
+                <button class="btn-x" title="@L["conn.disconnect"]" @onclick="() => Workspace.DisconnectAsync(conn.Id)">×</button>
+            }
+            else if (Profile is not null)
+            {
+                <button class="btn-x" title="@L["conn.edit"]" @onclick="() => OnEdit.InvokeAsync(Profile)">✎</button>
+            }
+        </span>
+    </div>
+
+    @if (_expanded && Connection is { } c)
+    {
+        <ul class="tree-root">
+            @foreach (var root in c.Roots)
+            {
+                <ObjectTreeNode Node="root" Explorer="c.Connection.ObjectExplorer" />
+            }
+        </ul>
+    }
+
+    @if (_error is not null)
+    {
+        <div class="server-error">@_error</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = string.Empty;
+
+    [Parameter]
+    public ConnectionProfile? Profile { get; set; }
+
+    [Parameter]
+    public EventCallback<ConnectionProfile> OnEdit { get; set; }
+
+    private bool _expanded;
+    private bool _connecting;
+    private string? _error;
+
+    private ServerConnection? Connection => Workspace.Connections.FirstOrDefault(c => c.Name == Name);
+
+    private bool IsActive => Connection is { } c && c.Id == Workspace.ActiveConnectionId;
+
+    private bool Expanded => _expanded && (Connection is not null || _connecting);
+
+    protected override void OnInitialized() => Workspace.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Workspace.Changed -= OnChanged;
+
+    private async Task ToggleAsync()
+    {
+        _error = null;
+
+        if (Connection is { } existing)
+        {
+            Workspace.SetActiveConnection(existing.Id);
+            _expanded = !_expanded;
+            return;
+        }
+
+        if (Profile is null)
+        {
+            return;
+        }
+
+        _expanded = true;
+        _connecting = true;
+        var connected = await Workspace.ConnectAsync(Profile);
+        _connecting = false;
+
+        if (!connected)
+        {
+            _expanded = false;
+            _error = Workspace.LastError;
+        }
+    }
+}

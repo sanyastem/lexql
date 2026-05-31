@@ -1,0 +1,39 @@
+<label class="field">
+    <span class="field-label">@Field.Label@(Field.Required ? " *" : null)</span>
+    @if (Field.Kind == ConnectionFieldKind.Choice)
+    {
+        <select class="field-input" @bind="Value">
+            @foreach (var option in Field.Options ?? [])
+            {
+                <option value="@option">@option</option>
+            }
+        </select>
+    }
+    else
+    {
+        <input class="field-input" type="@InputType" @bind="Value" placeholder="@Placeholder" />
+    }
+</label>
+
+@code {
+    [Parameter, EditorRequired]
+    public ConnectionField Field { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public Dictionary<string, string?> Values { get; set; } = default!;
+
+    private string? Value
+    {
+        get => Values.TryGetValue(Field.Key, out var value) ? value : null;
+        set => Values[Field.Key] = value;
+    }
+
+    private string InputType => Field.Kind switch
+    {
+        ConnectionFieldKind.Password => "password",
+        ConnectionFieldKind.Number => "number",
+        _ => "text",
+    };
+
+    private string? Placeholder => Field.Kind == ConnectionFieldKind.FilePath ? "/path/to/file" : null;
+}

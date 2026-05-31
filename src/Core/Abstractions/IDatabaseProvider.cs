@@ -76,7 +76,9 @@ public sealed record ConnectionField(
     string Label,
     ConnectionFieldKind Kind,
     bool Required,
-    string? Default = null);
+    string? Default = null,
+    IReadOnlyList<string>? Options = null,
+    bool Advanced = false);
 
 public enum ConnectionFieldKind { Text, Password, Number, Boolean, Choice, FilePath }
 
