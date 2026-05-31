@@ -11,20 +11,6 @@
         <span class="logo-text">Lexql</span>
     </div>
 
-    <div class="titlebar-tabs">
-        @foreach (var tab in Workspace.Tabs)
-        {
-            <div class="titlebar-tab @(tab.Id == Workspace.ActiveTabId ? "active" : null)"
-                 @onclick="() => SwitchAsync(tab.Id)">
-                <span class="tab-title">@tab.Title</span>
-                <button class="tab-close" title="@L["query.close"]"
-                        @onclick:stopPropagation="true" @onclick="() => Workspace.CloseTab(tab.Id)">×</button>
-            </div>
-        }
-        <button class="tab-add" title="@L["query.newQuery"]"
-                @onclick="() => Workspace.AddTab()" disabled="@(Workspace.Connections.Count == 0)">＋</button>
-    </div>
-
     <div class="titlebar-drag" data-drag></div>
 
     <div class="titlebar-tools">
@@ -98,8 +84,6 @@
 
     [JSInvokable]
     public void MoveWindow(int x, int y) => Window.MoveTo(x, y);
-
-    private Task SwitchAsync(string id) => Workspace.SwitchTabAsync(id);
 
     private async Task ToggleThemeAsync()
     {

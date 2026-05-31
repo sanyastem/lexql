@@ -4,8 +4,14 @@
 
 <aside class="sidebar">
     <div class="sidebar-header">
-        <span>@L["app.servers"]</span>
+        <span class="sidebar-title">
+            <span class="tree-icon accent"><TreeIcon Kind="server" /></span>
+            @L["app.servers"]
+        </span>
         <div class="header-actions">
+            <button class="btn-icon" title="@L["conn.refresh"]" disabled="@_refreshing" @onclick="RefreshAllAsync">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8 a4.5 4.5 0 1 1 -1.3 -3.2" /><path d="M12.8 2.6 V5.2 H10.2" /></svg>
+            </button>
             <button class="btn-add" title="@L["conn.newConnection"]" @onclick="ShowNewForm">＋</button>
         </div>
     </div>
@@ -38,6 +44,7 @@
 
 @code {
     private bool _showForm;
+    private bool _refreshing;
     private ConnectionProfile? _template;
 
     private string FormKey => _template?.Name ?? "new";
@@ -72,4 +79,17 @@
     }
 
     private void HideForm() => _showForm = false;
+
+    private async Task RefreshAllAsync()
+    {
+        _refreshing = true;
+        try
+        {
+            await Workspace.RefreshAllAsync();
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+    }
 }

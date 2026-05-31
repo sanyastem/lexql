@@ -25,6 +25,18 @@ export function init(host, dotnetRef, initialValue, theme) {
                     dotnetRef.invokeMethodAsync("OnRunRequested");
                 });
 
+                editor.addCommand(monaco.KeyCode.F8, () => {
+                    dotnetRef.invokeMethodAsync("OnRunRequested");
+                });
+
+                editor.addCommand(monaco.KeyCode.F5, () => {
+                    dotnetRef.invokeMethodAsync("OnRunAllRequested");
+                });
+
+                editor.onDidChangeModelContent(() => {
+                    dotnetRef.invokeMethodAsync("OnContentChanged");
+                });
+
                 registerCompletion();
                 resolve();
             });

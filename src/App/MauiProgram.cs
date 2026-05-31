@@ -47,9 +47,11 @@ public static class MauiProgram
 
 #if WINDOWS
 		builder.Services.AddSingleton<IWindowControls, WindowsWindowControls>();
+		builder.Services.AddSingleton<IFileDialog, WindowsFileDialog>();
 		ConfigureFramelessWindow();
 #else
 		builder.Services.AddSingleton<IWindowControls, NoopWindowControls>();
+		builder.Services.AddSingleton<IFileDialog, NoopFileDialog>();
 #endif
 
 		builder.Logging.AddProvider(new FileLoggerProvider());

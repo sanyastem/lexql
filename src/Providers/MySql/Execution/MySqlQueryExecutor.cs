@@ -9,8 +9,12 @@ namespace Lexql.Providers.MySql.Execution;
 
 public sealed class MySqlQueryExecutor : IQueryExecutor
 {
+    public const string TraceMarker = "/* Lexql */";
+
     private readonly MySqlConnection _connection;
     private readonly MySqlQueryExecutorOptions _options;
+
+    public static string Tag(string text) => $"{TraceMarker} {text}";
 
     public MySqlQueryExecutor(MySqlConnection connection, MySqlQueryExecutorOptions? options = null)
     {
@@ -34,7 +38,7 @@ public sealed class MySqlQueryExecutor : IQueryExecutor
         }
 
         using var command = _connection.CreateCommand();
-        command.CommandText = request.Text;
+        command.CommandText = Tag(request.Text);
         if (_options.CommandTimeoutSeconds is { } timeout)
         {
             command.CommandTimeout = timeout;

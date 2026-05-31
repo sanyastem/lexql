@@ -1,3 +1,4 @@
+@using System.IO
 @using Lexql.Core.History
 @using Lexql.Core.Relational
 @using Lexql.Core.Relational.Dml
@@ -6,9 +7,32 @@
 @inject WorkspaceState Workspace
 @inject LocalizationService L
 @inject IQueryHistoryStore History
+@inject IFileDialog FileDialog
 @implements IDisposable
 
 <main class="editor-area">
+    <div class="tab-strip">
+        @foreach (var tab in Workspace.Tabs)
+        {
+            <div class="qtab @(tab.Id == Workspace.ActiveTabId ? "active" : null)" @onclick="() => SwitchAsync(tab.Id)">
+                <span class="tab-title">@tab.Title@(tab.Dirty ? " •" : null)</span>
+                <button class="tab-close" title="@L["query.close"]"
+                        @onclick:stopPropagation="true" @onclick="() => RequestCloseAsync(tab.Id)">×</button>
+            </div>
+        }
+        <button class="tab-add" title="@L["query.newQuery"]" @onclick="() => Workspace.AddTab()">＋</button>
+        <span class="tab-strip-spacer"></span>
+        @if (FileDialog.Supported)
+        {
+            <button class="btn-icon" title="@L["file.open"]" @onclick="OpenFileAsync">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5 H6.2 L7.7 6 H14 V12.5 H2 Z" /></svg>
+            </button>
+            <button class="btn-icon" title="@L["file.save"]" disabled="@(Workspace.ActiveTab is null)" @onclick="() => SaveTabAsync(Workspace.ActiveTab)">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.5 H11 L13.5 5 V13.5 H3 Z" /><path d="M5 2.5 V6 H10 V2.5" /><rect x="5.5" y="9" width="5" height="3.5" /></svg>
+            </button>
+        }
+    </div>
+
     @if (_showHistory)
     {
         <section class="panel history-panel">
@@ -43,23 +67,41 @@
     {
         <section class="panel query-panel">
             <div class="query-head">
-                <select class="conn-select" value="@active.ConnectionId" @onchange="e => SetConnection(active, e)">
+                <select class="conn-select" value="@active.ConnectionId" @onchange="e => SetConnectionAsync(active, e)">
                     <option value="">@L["query.noConnection"]</option>
                     @foreach (var server in Workspace.Connections)
                     {
                         <option value="@server.Id">@server.Name</option>
                     }
+                    @foreach (var profile in SavedNotConnected)
+                    {
+                        <option value="@("profile:" + profile.Name)">@profile.Name @L["query.connectSuffix"]</option>
+                    }
                 </select>
+                @if (DatabasesOf(active).Any())
+                {
+                    <select class="conn-select db-select" value="@(active.Database ?? string.Empty)" @onchange="e => SetDatabase(active, e)">
+                        <option value="">@L["query.database"]</option>
+                        @foreach (var db in DatabasesOf(active))
+                        {
+                            <option value="@db">@db</option>
+                        }
+                    </select>
+                }
                 <span class="hint">@L["query.hint"]</span>
                 <button class="icon-btn history-toggle" title="@L["history.title"]" @onclick="ToggleHistoryAsync">🕘</button>
             </div>
 
             <SqlEditor @key="active.Id" @ref="_editor"
-                       InitialValue="@active.Sql" OnRun="RunAsync" CompletionSource="GetCompletionsAsync" />
+                       InitialValue="@active.Sql" OnRun="RunCurrentAsync" OnRunAll="RunAllAsync"
+                       OnChanged="MarkDirty" CompletionSource="GetCompletionsAsync" />
 
             <div class="query-actions">
-                <button class="btn-run" @onclick="RunAsync" disabled="@(_running || ConnectionOf(active) is null)">
-                    @(_running ? L["query.running"] : L["query.run"])
+                <button class="btn-run" title="F5" @onclick="RunAllAsync" disabled="@(_running || ConnectionOf(active) is null)">
+                    @(_running ? L["query.running"] : L["query.runAll"])
+                </button>
+                <button class="btn-run secondary" title="F8" @onclick="RunCurrentAsync" disabled="@(_running || ConnectionOf(active) is null)">
+                    @L["query.run"]
                 </button>
                 @if (_running)
                 {
@@ -121,7 +163,7 @@
         @if (_previewSql is not null)
         {
             <div class="modal-overlay" @onclick="CancelApply">
-                <div class="modal" @onclick:stopPropagation="true">
+                <div class="lx-modal" @onclick:stopPropagation="true">
                     <h3>@L["grid.applyTitle"]</h3>
                     <pre class="preview-sql">@_previewSql</pre>
                     <div class="actions">
@@ -139,6 +181,23 @@
         <div class="empty-state">
             <div class="empty-glyph">&gt;_</div>
             <p>@L["query.empty"]</p>
+            <button class="btn-add-server" @onclick="() => Workspace.AddTab()">＋ @L["query.newQuery"]</button>
+        </div>
+    }
+
+    @if (_closingTab is { } closing)
+    {
+        <div class="modal-overlay" @onclick="CancelClose">
+            <div class="lx-modal close-modal" @onclick:stopPropagation="true">
+                <h3>@L["close.title"]</h3>
+                <p>@string.Format(L["close.message"], closing.Title)</p>
+                <div class="actions">
+                    <button class="btn-secondary" @onclick="DiscardAndClose" disabled="@_closingBusy">@L["close.dontSave"]</button>
+                    <span class="spacer"></span>
+                    <button class="btn-secondary" @onclick="CancelClose" disabled="@_closingBusy">@L["conn.cancel"]</button>
+                    <button class="btn-connect" @onclick="SaveAndCloseAsync" disabled="@_closingBusy">@L["close.save"]</button>
+                </div>
+            </div>
         </div>
     }
 </main>
@@ -223,11 +282,167 @@
 
     private ServerConnection? ConnectionOf(QueryTab tab) => Workspace.ConnectionFor(tab);
 
-    private void SetConnection(QueryTab tab, ChangeEventArgs e)
+    private Task SwitchAsync(string id) => Workspace.SwitchTabAsync(id);
+
+    private IEnumerable<ConnectionProfile> SavedNotConnected =>
+        Workspace.SavedProfiles.Where(p => !Workspace.Connections.Any(c => c.Name == p.Name));
+
+    private async Task SetConnectionAsync(QueryTab tab, ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        tab.ConnectionId = string.IsNullOrEmpty(value) ? null : value;
+        if (string.IsNullOrEmpty(value))
+        {
+            tab.ConnectionId = null;
+            tab.Database = null;
+            return;
+        }
+
+        if (value.StartsWith("profile:", StringComparison.Ordinal))
+        {
+            var name = value["profile:".Length..];
+            var profile = Workspace.SavedProfiles.FirstOrDefault(p => p.Name == name);
+            if (profile is null)
+            {
+                return;
+            }
+
+            var connection = Workspace.Connections.FirstOrDefault(c => c.Name == name);
+            if (connection is null)
+            {
+                if (!await Workspace.ConnectAsync(profile))
+                {
+                    return;
+                }
+
+                connection = Workspace.Connections.FirstOrDefault(c => c.Name == name);
+            }
+
+            tab.ConnectionId = connection?.Id;
+        }
+        else
+        {
+            tab.ConnectionId = value;
+        }
+
+        tab.Database = ConnectionOf(tab)?.DefaultNamespace;
     }
+
+    private void MarkDirty()
+    {
+        if (Workspace.ActiveTab is { Dirty: false } tab)
+        {
+            tab.Dirty = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenFileAsync()
+    {
+        var pick = await FileDialog.OpenAsync();
+        if (pick is not null)
+        {
+            Workspace.OpenFileTab(pick.Path, pick.Content);
+        }
+    }
+
+    private async Task SaveTabAsync(QueryTab? tab)
+    {
+        if (tab is null)
+        {
+            return;
+        }
+
+        if (tab.Id == Workspace.ActiveTabId)
+        {
+            await SaveEditorAsync();
+        }
+
+        if (tab.FilePath is { } path)
+        {
+            await File.WriteAllTextAsync(path, tab.Sql);
+            tab.Dirty = false;
+        }
+        else
+        {
+            var saved = await FileDialog.SaveAsync($"{tab.Title}.sql", tab.Sql);
+            if (saved is not null)
+            {
+                tab.FilePath = saved;
+                tab.Title = Path.GetFileName(saved);
+                tab.Dirty = false;
+            }
+        }
+    }
+
+    private QueryTab? _closingTab;
+    private bool _closingBusy;
+
+    private async Task RequestCloseAsync(string tabId)
+    {
+        var tab = Workspace.Tabs.FirstOrDefault(t => t.Id == tabId);
+        if (tab is null)
+        {
+            return;
+        }
+
+        if (tab.Id == Workspace.ActiveTabId)
+        {
+            await SaveEditorAsync();
+        }
+
+        if (tab.Dirty && !string.IsNullOrWhiteSpace(tab.Sql))
+        {
+            _closingTab = tab;
+            return;
+        }
+
+        Workspace.CloseTab(tabId);
+    }
+
+    private void CancelClose() => _closingTab = null;
+
+    private void DiscardAndClose()
+    {
+        if (_closingTab is { } tab)
+        {
+            Workspace.CloseTab(tab.Id);
+            _closingTab = null;
+        }
+    }
+
+    private async Task SaveAndCloseAsync()
+    {
+        if (_closingTab is not { } tab)
+        {
+            return;
+        }
+
+        _closingBusy = true;
+        try
+        {
+            await SaveTabAsync(tab);
+            if (!tab.Dirty)
+            {
+                Workspace.CloseTab(tab.Id);
+                _closingTab = null;
+            }
+        }
+        finally
+        {
+            _closingBusy = false;
+        }
+    }
+
+    private void SetDatabase(QueryTab tab, ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        tab.Database = string.IsNullOrEmpty(value) ? null : value;
+    }
+
+    private IEnumerable<string> DatabasesOf(QueryTab tab) =>
+        ConnectionOf(tab) is { } connection
+            ? connection.Roots.Where(r => r.Kind == DatabaseObjectKind.Namespace).Select(r => r.Name)
+            : [];
 
     private async Task SaveEditorAsync()
     {
@@ -334,9 +549,9 @@
         map.ToDictionary(kv => kv.Key, kv => (object?)kv.Value);
 
     private static async Task<EditabilityInfo?> AnalyzeEditabilityAsync(
-        ServerConnection connection, string sql, ResultGridModel grid)
+        ServerConnection connection, string? namespaceName, string sql, ResultGridModel grid)
     {
-        if (connection.DefaultNamespace is null)
+        if (string.IsNullOrWhiteSpace(namespaceName))
         {
             return null;
         }
@@ -349,7 +564,7 @@
 
         try
         {
-            var schema = await schemaReader.LoadAsync(connection.DefaultNamespace, CancellationToken.None);
+            var schema = await schemaReader.LoadAsync(namespaceName, CancellationToken.None);
             var columns = grid.Columns.Select(c => c.Name).ToList();
             return EditableResultAnalyzer.Analyze(sql, columns, schema);
         }
@@ -377,7 +592,11 @@
         return MySqlStatementSplitter.StatementAt(full, offset) ?? full;
     }
 
-    private async Task RunAsync()
+    private Task RunAllAsync() => RunAsync(currentStatementOnly: false);
+
+    private Task RunCurrentAsync() => RunAsync(currentStatementOnly: true);
+
+    private async Task RunAsync(bool currentStatementOnly = true)
     {
         if (Workspace.ActiveTab is not { } tab)
         {
@@ -391,7 +610,9 @@
         }
 
         await SaveEditorAsync();
-        var sql = await ResolveSqlAsync();
+        var sql = currentStatementOnly
+            ? await ResolveSqlAsync()
+            : (_editor is null ? string.Empty : await _editor.GetValueAsync());
         if (string.IsNullOrWhiteSpace(sql))
         {
             return;
@@ -406,7 +627,12 @@
         _cts = new CancellationTokenSource();
         try
         {
-            var request = new QueryRequest(sql, RowLimit: tab.RowLimit);
+            var targetDatabase = tab.Database ?? connection.DefaultNamespace;
+            var text = string.IsNullOrWhiteSpace(targetDatabase)
+                ? sql
+                : $"USE `{targetDatabase.Replace("`", "``")}`;\n{sql}";
+
+            var request = new QueryRequest(text, RowLimit: tab.RowLimit);
             var execution = await connection.Connection.QueryExecutor.ExecuteAsync(request, _cts.Token);
             tab.Messages = execution.Messages;
 
@@ -415,7 +641,7 @@
             {
                 tab.Grid = await ResultGridBuilder.BuildAsync(resultSet, _cts.Token);
                 tab.Status = $"{tab.Grid.Rows.Count} rows in {execution.Elapsed.TotalMilliseconds:F0} ms";
-                tab.Editability = await AnalyzeEditabilityAsync(connection, sql, tab.Grid);
+                tab.Editability = await AnalyzeEditabilityAsync(connection, targetDatabase, sql, tab.Grid);
             }
             else
             {

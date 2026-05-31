@@ -13,4 +13,6 @@ public sealed class ServerConnection
     public string? DefaultNamespace { get; init; }
 
     public IReadOnlyList<DatabaseObjectNode> Roots { get; set; } = [];
+
+    public int RefreshToken { get; set; }
 }

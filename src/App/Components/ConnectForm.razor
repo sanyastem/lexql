@@ -3,7 +3,7 @@
 @implements IDisposable
 
 <div class="modal-overlay" @onclick="Cancel">
-    <div class="modal connect-modal" @onclick:stopPropagation="true">
+    <div class="lx-modal connect-modal" @onclick:stopPropagation="true">
         <h3>@(Template is null ? L["conn.newConnection"] : Template.Name)</h3>
 
         <div class="fields">

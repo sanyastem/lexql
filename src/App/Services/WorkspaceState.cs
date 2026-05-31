@@ -104,6 +104,7 @@ public sealed class WorkspaceState
             else if (ActiveTab is { ConnectionId: null } tab)
             {
                 tab.ConnectionId = server.Id;
+                tab.Database = server.DefaultNamespace;
             }
 
             Notify();
@@ -122,6 +123,32 @@ public sealed class WorkspaceState
         SavedProfiles.RemoveAll(p => string.Equals(p.Name, profile.Name, StringComparison.OrdinalIgnoreCase));
         SavedProfiles.Add(profile);
         await _store.SaveAllAsync(SavedProfiles, CancellationToken.None);
+        Notify();
+    }
+
+    public async Task RefreshConnectionAsync(string connectionId)
+    {
+        var server = Connections.FirstOrDefault(c => c.Id == connectionId);
+        if (server is null)
+        {
+            return;
+        }
+
+        server.Roots = await server.Connection.ObjectExplorer.GetRootsAsync(CancellationToken.None);
+        server.RefreshToken++;
+        Notify();
+    }
+
+    public async Task RefreshAllAsync()
+    {
+        SavedProfiles = (await _store.LoadAllAsync(CancellationToken.None)).ToList();
+
+        foreach (var server in Connections)
+        {
+            server.Roots = await server.Connection.ObjectExplorer.GetRootsAsync(CancellationToken.None);
+            server.RefreshToken++;
+        }
+
         Notify();
     }
 
@@ -151,11 +178,33 @@ public sealed class WorkspaceState
 
     public QueryTab AddTab(string? connectionId = null)
     {
+        var id = connectionId ?? ActiveConnectionId;
         var tab = new QueryTab
         {
             Id = Guid.NewGuid().ToString("N"),
-            ConnectionId = connectionId ?? ActiveConnectionId,
+            ConnectionId = id,
+            Database = Connections.FirstOrDefault(c => c.Id == id)?.DefaultNamespace,
             Title = $"Query {Tabs.Count + 1}",
+        };
+
+        Tabs.Add(tab);
+        ActiveTabId = tab.Id;
+        Notify();
+        return tab;
+    }
+
+    public QueryTab OpenFileTab(string path, string content)
+    {
+        var id = ActiveConnectionId;
+        var tab = new QueryTab
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            ConnectionId = id,
+            Database = Connections.FirstOrDefault(c => c.Id == id)?.DefaultNamespace,
+            Title = Path.GetFileName(path),
+            FilePath = path,
+            Sql = content,
+            Dirty = false,
         };
 
         Tabs.Add(tab);

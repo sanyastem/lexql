@@ -12,7 +12,13 @@ public sealed class QueryTab
 
     public string? ConnectionId { get; set; }
 
-    public string Sql { get; set; } = "SELECT 1;";
+    public string? Database { get; set; }
+
+    public string? FilePath { get; set; }
+
+    public bool Dirty { get; set; }
+
+    public string Sql { get; set; } = string.Empty;
 
     public int RowLimit { get; set; } = 1000;
 

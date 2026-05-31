@@ -25,4 +25,19 @@ public class MySqlReadOnlyExecutorTests
             () => ReadOnlyExecutor().ExecuteAsync(
                 new QueryRequest("DROP TABLE users"), CancellationToken.None));
     }
+
+    [Fact]
+    public void Tag_PrependsTraceMarker()
+    {
+        var tagged = MySqlQueryExecutor.Tag("SELECT 1");
+
+        Assert.StartsWith(MySqlQueryExecutor.TraceMarker, tagged);
+        Assert.EndsWith("SELECT 1", tagged);
+    }
+
+    [Fact]
+    public void Tag_DoesNotChangeStatementClassification()
+    {
+        Assert.True(SqlStatementClassifier.IsAllowedInReadOnly(MySqlQueryExecutor.Tag("SELECT 1")));
+    }
 }

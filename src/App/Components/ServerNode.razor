@@ -7,6 +7,7 @@
         <span class="server-main">
             <span class="tree-chevron">@(Expanded ? "▾" : "▸")</span>
             <span class="tree-icon accent"><TreeIcon Kind="server" /></span>
+            <span class="status-dot @(Connection is null ? "offline" : "online")" title="@(Connection is null ? L["conn.offline"] : L["conn.online"])"></span>
             <span class="server-name">@Name</span>
             @if (_connecting)
             {
@@ -20,11 +21,24 @@
                 {
                     <span class="ro-badge" title="Read-only">RO</span>
                 }
-                <button class="btn-x" title="@L["conn.disconnect"]" @onclick="() => Workspace.DisconnectAsync(conn.Id)">×</button>
+                <button class="btn-icon" title="@L["conn.refresh"]" disabled="@_refreshing" @onclick="() => RefreshAsync(conn.Id)">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8 a4.5 4.5 0 1 1 -1.3 -3.2" /><path d="M12.8 2.6 V5.2 H10.2" /></svg>
+                </button>
+                <button class="btn-icon danger" title="@L["conn.disconnect"]" @onclick="() => Workspace.DisconnectAsync(conn.Id)">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 V7.5" /><path d="M11.2 4.3 a4.4 4.4 0 1 1 -6.4 0" /></svg>
+                </button>
             }
-            else if (Profile is not null)
+            else
             {
-                <button class="btn-x" title="@L["conn.edit"]" @onclick="() => OnEdit.InvokeAsync(Profile)">✎</button>
+                @if (Profile is not null)
+                {
+                    <button class="btn-icon accent" title="@L["conn.connect"]" disabled="@_connecting" @onclick="ConnectAsync">
+                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 V7.5" /><path d="M11.2 4.3 a4.4 4.4 0 1 1 -6.4 0" /></svg>
+                    </button>
+                    <button class="btn-icon" title="@L["conn.edit"]" @onclick="() => OnEdit.InvokeAsync(Profile)">
+                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.3 2.4 L13.6 5.7 L6 13.3 H2.7 V10 Z" /></svg>
+                    </button>
+                }
             }
         </span>
     </div>
@@ -34,7 +48,7 @@
         <ul class="tree-root">
             @foreach (var root in c.Roots)
             {
-                <ObjectTreeNode Node="root" Explorer="c.Connection.ObjectExplorer" />
+                <ObjectTreeNode @key="@($"{root.Id}:{c.RefreshToken}")" Node="root" Explorer="c.Connection.ObjectExplorer" />
             }
         </ul>
     }
@@ -57,6 +71,7 @@
 
     private bool _expanded;
     private bool _connecting;
+    private bool _refreshing;
     private string? _error;
 
     private ServerConnection? Connection => Workspace.Connections.FirstOrDefault(c => c.Name == Name);
@@ -82,11 +97,17 @@
             return;
         }
 
+        await ConnectAsync();
+    }
+
+    private async Task ConnectAsync()
+    {
         if (Profile is null)
         {
             return;
         }
 
+        _error = null;
         _expanded = true;
         _connecting = true;
         var connected = await Workspace.ConnectAsync(Profile);
@@ -96,6 +117,19 @@
         {
             _expanded = false;
             _error = Workspace.LastError;
+        }
+    }
+
+    private async Task RefreshAsync(string id)
+    {
+        _refreshing = true;
+        try
+        {
+            await Workspace.RefreshConnectionAsync(id);
+        }
+        finally
+        {
+            _refreshing = false;
         }
     }
 }
