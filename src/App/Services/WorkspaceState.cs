@@ -264,6 +264,40 @@ public sealed class WorkspaceState
         Notify();
     }
 
+    public IReadOnlyList<QueryTab> ClosableTabs(IEnumerable<string> ids)
+    {
+        var wanted = ids.ToHashSet();
+        return Tabs.Where(t => wanted.Contains(t.Id) && !HasUnsavedWork(t)).ToList();
+    }
+
+    public IReadOnlyList<string> CloseTabs(IEnumerable<string> ids)
+    {
+        var closable = ClosableTabs(ids);
+        foreach (var tab in closable)
+        {
+            Tabs.Remove(tab);
+        }
+
+        if (ActiveTabId is { } active && Tabs.All(t => t.Id != active))
+        {
+            ActiveTabId = Tabs.LastOrDefault()?.Id;
+        }
+
+        Notify();
+        return Tabs.Where(t => ids.Contains(t.Id)).Select(t => t.Id).ToList();
+    }
+
+    public IEnumerable<string> OtherTabIds(string keepId) =>
+        Tabs.Where(t => t.Id != keepId).Select(t => t.Id);
+
+    public IEnumerable<string> TabIdsRightOf(string tabId)
+    {
+        var index = Tabs.FindIndex(t => t.Id == tabId);
+        return index < 0 ? [] : Tabs.Skip(index + 1).Select(t => t.Id);
+    }
+
+    private static bool HasUnsavedWork(QueryTab tab) => tab.Dirty && !string.IsNullOrWhiteSpace(tab.Sql);
+
     private void Notify() => Changed?.Invoke();
 }
 

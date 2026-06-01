@@ -15,7 +15,8 @@
     <div class="tab-strip">
         @foreach (var tab in Workspace.Tabs)
         {
-            <div class="qtab @(tab.Id == Workspace.ActiveTabId ? "active" : null)" @onclick="() => SwitchAsync(tab.Id)">
+            <div class="qtab @(tab.Id == Workspace.ActiveTabId ? "active" : null)" @onclick="() => SwitchAsync(tab.Id)"
+                 @oncontextmenu="e => OpenTabMenu(tab.Id, e)" @oncontextmenu:preventDefault="true">
                 <span class="tab-title">@tab.Title@(tab.Dirty ? " •" : null)</span>
                 <button class="tab-close" title="@L["query.close"]"
                         @onclick:stopPropagation="true" @onclick="() => RequestCloseAsync(tab.Id)">×</button>
@@ -267,6 +268,18 @@
             <div class="empty-glyph">&gt;_</div>
             <p>@L["query.empty"]</p>
             <button class="btn-add-server" @onclick="() => Workspace.AddTab()">＋ @L["query.newQuery"]</button>
+        </div>
+    }
+
+    @if (_tabMenuId is { } menuTab)
+    {
+        <div class="context-overlay" @onclick="CloseTabMenu" @oncontextmenu:preventDefault="true" @oncontextmenu="CloseTabMenu"></div>
+        <div class="context-menu" style="left:@(_tabMenuX)px; top:@(_tabMenuY)px">
+            <button class="ctx-item" @onclick="() => CloseFromMenuAsync(menuTab)">@L["query.close"]</button>
+            <button class="ctx-item" disabled="@(Workspace.Tabs.Count <= 1)" @onclick="() => CloseOthersFromMenu(menuTab)">@L["tab.closeOthers"]</button>
+            <button class="ctx-item" disabled="@(!Workspace.TabIdsRightOf(menuTab).Any())" @onclick="() => CloseRightFromMenu(menuTab)">@L["tab.closeRight"]</button>
+            <div class="ctx-sep"></div>
+            <button class="ctx-item" @onclick="CloseAllFromMenu">@L["tab.closeAll"]</button>
         </div>
     }
 
@@ -522,6 +535,43 @@
                 tab.Dirty = false;
             }
         }
+    }
+
+    private string? _tabMenuId;
+    private double _tabMenuX;
+    private double _tabMenuY;
+
+    private void OpenTabMenu(string tabId, MouseEventArgs e)
+    {
+        _tabMenuId = tabId;
+        _tabMenuX = e.ClientX;
+        _tabMenuY = e.ClientY;
+    }
+
+    private void CloseTabMenu() => _tabMenuId = null;
+
+    private async Task CloseFromMenuAsync(string tabId)
+    {
+        CloseTabMenu();
+        await RequestCloseAsync(tabId);
+    }
+
+    private void CloseOthersFromMenu(string keepId)
+    {
+        CloseTabMenu();
+        Workspace.CloseTabs(Workspace.OtherTabIds(keepId));
+    }
+
+    private void CloseRightFromMenu(string tabId)
+    {
+        CloseTabMenu();
+        Workspace.CloseTabs(Workspace.TabIdsRightOf(tabId));
+    }
+
+    private void CloseAllFromMenu()
+    {
+        CloseTabMenu();
+        Workspace.CloseTabs(Workspace.Tabs.Select(t => t.Id).ToList());
     }
 
     private QueryTab? _closingTab;
