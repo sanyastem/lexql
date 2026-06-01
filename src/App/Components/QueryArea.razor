@@ -684,11 +684,20 @@
         return MySqlStatementSplitter.StatementAt(full, offset) ?? full;
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Workspace.ActiveTab is { PendingRun: true } tab && ConnectionOf(tab) is not null)
+        {
+            tab.PendingRun = false;
+            await RunAsync(currentStatementOnly: false, explicitSql: tab.Sql);
+        }
+    }
+
     private Task RunAllAsync() => RunAsync(currentStatementOnly: false);
 
     private Task RunCurrentAsync() => RunAsync(currentStatementOnly: true);
 
-    private async Task RunAsync(bool currentStatementOnly = true)
+    private async Task RunAsync(bool currentStatementOnly = true, string? explicitSql = null)
     {
         if (Workspace.ActiveTab is not { } tab)
         {
@@ -701,10 +710,19 @@
             return;
         }
 
-        await SaveEditorAsync();
-        var sql = currentStatementOnly
-            ? await ResolveSqlAsync()
-            : (_editor is null ? string.Empty : await _editor.GetValueAsync());
+        string sql;
+        if (explicitSql is not null)
+        {
+            sql = explicitSql;
+        }
+        else
+        {
+            await SaveEditorAsync();
+            sql = currentStatementOnly
+                ? await ResolveSqlAsync()
+                : (_editor is null ? string.Empty : await _editor.GetValueAsync());
+        }
+
         if (string.IsNullOrWhiteSpace(sql))
         {
             return;

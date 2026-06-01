@@ -220,6 +220,25 @@ public sealed class WorkspaceState
         return tab;
     }
 
+    public QueryTab OpenTableData(string connectionId, string schema, string table)
+    {
+        var sql = $"SELECT * FROM `{schema.Replace("`", "``")}`.`{table.Replace("`", "``")}`";
+        var tab = new QueryTab
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            ConnectionId = connectionId,
+            Database = schema,
+            Title = table,
+            Sql = sql,
+            PendingRun = true,
+        };
+
+        Tabs.Add(tab);
+        ActiveTabId = tab.Id;
+        Notify();
+        return tab;
+    }
+
     public void CloseTab(string tabId)
     {
         var tab = Tabs.FirstOrDefault(t => t.Id == tabId);
@@ -239,3 +258,5 @@ public sealed class WorkspaceState
 
     private void Notify() => Changed?.Invoke();
 }
+
+public readonly record struct ObjectRef(string Namespace, string Name);

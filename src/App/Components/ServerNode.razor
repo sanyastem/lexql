@@ -25,7 +25,8 @@
         <ul class="tree-root">
             @foreach (var root in c.Roots)
             {
-                <ObjectTreeNode @key="@($"{root.Id}:{c.RefreshToken}")" Node="root" Explorer="c.Connection.ObjectExplorer" />
+                <ObjectTreeNode @key="@($"{root.Id}:{c.RefreshToken}")" Node="root" Explorer="c.Connection.ObjectExplorer"
+                                OnOpenData="t => OpenDataAsync(c, t)" />
             }
         </ul>
     }
@@ -242,4 +243,10 @@
     }
 
     private void CloseProperties() => _showProps = false;
+
+    private void OpenDataAsync(ServerConnection connection, ObjectRef target)
+    {
+        Workspace.SetActiveConnection(connection.Id);
+        Workspace.OpenTableData(connection.Id, target.Namespace, target.Name);
+    }
 }

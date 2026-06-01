@@ -17,6 +17,8 @@ public sealed class QueryTab
 
     public bool Dirty { get; set; }
 
+    public bool PendingRun { get; set; }
+
     public string Sql { get; set; } = string.Empty;
 
     public int RowLimit { get; set; } = 1000;

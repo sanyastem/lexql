@@ -1,5 +1,6 @@
 <li class="tree-node">
-    <span class="tree-label @(Node.HasChildren ? "expandable" : null)" @onclick="ToggleAsync">
+    <span class="tree-label @(Node.HasChildren ? "expandable" : null) @(CanOpenData ? "data" : null)"
+          @onclick="ToggleAsync" @ondblclick="OpenDataAsync">
         <span class="tree-chevron">@(Node.HasChildren ? (_expanded ? "▾" : "▸") : null)</span>
         <span class="tree-icon @(IsAccent ? "accent" : null)"><TreeIcon Kind="@IconName" /></span>
         <span class="tree-name">@Node.Name</span>
@@ -14,7 +15,7 @@
         <ul class="tree-children">
             @foreach (var child in _children)
             {
-                <ObjectTreeNode Node="child" Explorer="Explorer" />
+                <ObjectTreeNode Node="child" Explorer="Explorer" Namespace="@ChildNamespace" OnOpenData="OnOpenData" />
             }
         </ul>
     }
@@ -26,6 +27,18 @@
 
     [Parameter, EditorRequired]
     public IObjectExplorer Explorer { get; set; } = default!;
+
+    [Parameter]
+    public string? Namespace { get; set; }
+
+    [Parameter]
+    public EventCallback<ObjectRef> OnOpenData { get; set; }
+
+    private string? ChildNamespace =>
+        Node.Kind == DatabaseObjectKind.Namespace ? Node.Name : Namespace;
+
+    private bool CanOpenData =>
+        Namespace is not null && Node.Kind is DatabaseObjectKind.Container or DatabaseObjectKind.View;
 
     private bool _expanded;
     private bool _loading;
@@ -63,6 +76,14 @@
             {
                 _loading = false;
             }
+        }
+    }
+
+    private async Task OpenDataAsync()
+    {
+        if (CanOpenData && Namespace is { } ns)
+        {
+            await OnOpenData.InvokeAsync(new ObjectRef(ns, Node.Name));
         }
     }
 }
