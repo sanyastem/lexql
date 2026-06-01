@@ -40,4 +40,4 @@ public enum OutputKind
     Error,
 }
 
-public sealed record OutputEntry(DateTime Time, OutputKind Kind, string Text, double? ElapsedMs = null);
+public sealed record OutputEntry(DateTime Time, OutputKind Kind, string Text, double? ElapsedMs = null, string? Detail = null);

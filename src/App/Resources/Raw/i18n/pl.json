@@ -44,6 +44,7 @@
   "output.executing": "Wykonywanie: {0}",
   "output.rows": "Wiersze: {0}",
   "output.affected": "Zmodyfikowano wierszy: {0}",
+  "output.error": "Błąd",
   "grid.addRow": "Dodaj wiersz",
   "grid.deleteSelected": "Usuń zaznaczone",
   "grid.preview": "Podgląd i zastosuj",

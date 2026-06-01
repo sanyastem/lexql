@@ -44,6 +44,7 @@
   "output.executing": "Выполняется: {0}",
   "output.rows": "Строк: {0}",
   "output.affected": "Затронуто строк: {0}",
+  "output.error": "Ошибка",
   "grid.addRow": "Добавить строку",
   "grid.deleteSelected": "Удалить выбранные",
   "grid.preview": "Превью и применить",

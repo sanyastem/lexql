@@ -201,7 +201,7 @@
                                 {
                                     <li class="log-error">
                                         <span class="log-time">@entry.Time.ToString("HH:mm:ss")</span>
-                                        <span class="log-text">@entry.Text</span>
+                                        <span class="log-text">@(entry.Detail ?? entry.Text)</span>
                                     </li>
                                 }
                             </ul>
@@ -262,9 +262,9 @@
     private bool _outputOpen = true;
     private bool _errorsOpen = true;
 
-    private static void Log(QueryTab tab, OutputKind kind, string text, double? elapsedMs = null)
+    private static void Log(QueryTab tab, OutputKind kind, string text, double? elapsedMs = null, string? detail = null)
     {
-        tab.Output.Add(new OutputEntry(DateTime.Now, kind, text, elapsedMs));
+        tab.Output.Add(new OutputEntry(DateTime.Now, kind, text, elapsedMs, detail));
         if (tab.Output.Count > 200)
         {
             tab.Output.RemoveRange(0, tab.Output.Count - 200);
@@ -584,7 +584,7 @@
         }
         catch (QueryExecutionException ex)
         {
-            Log(tab, OutputKind.Error, ex.Message);
+            Log(tab, OutputKind.Error, L["output.error"], detail: ex.Message);
             _errorsOpen = true;
             _previewSql = null;
             _pendingCommands = null;
@@ -716,9 +716,15 @@
 
             foreach (var message in execution.Messages)
             {
-                Log(tab, message.Severity == DiagnosticSeverity.Error ? OutputKind.Error
-                    : message.Severity == DiagnosticSeverity.Warning ? OutputKind.Warning
-                    : OutputKind.Info, message.Text);
+                if (message.Severity == DiagnosticSeverity.Error)
+                {
+                    Log(tab, OutputKind.Error, L["output.error"], detail: message.Text);
+                    _errorsOpen = true;
+                }
+                else
+                {
+                    Log(tab, message.Severity == DiagnosticSeverity.Warning ? OutputKind.Warning : OutputKind.Info, message.Text);
+                }
             }
 
             var elapsed = execution.Elapsed.TotalMilliseconds;
@@ -742,7 +748,7 @@
         }
         catch (QueryExecutionException ex)
         {
-            Log(tab, OutputKind.Error, FormatError(ex));
+            Log(tab, OutputKind.Error, L["output.error"], detail: FormatError(ex));
             _errorsOpen = true;
             await History.AddHistoryAsync(sql, connection.Name, false, CancellationToken.None);
         }

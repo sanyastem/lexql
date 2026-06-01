@@ -44,6 +44,7 @@
   "output.executing": "Executing: {0}",
   "output.rows": "{0} rows",
   "output.affected": "{0} rows affected",
+  "output.error": "Error",
   "grid.addRow": "Add row",
   "grid.deleteSelected": "Delete selected",
   "grid.preview": "Preview & apply",
