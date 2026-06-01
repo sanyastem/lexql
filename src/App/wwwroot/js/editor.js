@@ -33,6 +33,10 @@ export function init(host, dotnetRef, initialValue, theme) {
                     dotnetRef.invokeMethodAsync("OnRunAllRequested");
                 });
 
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                    dotnetRef.invokeMethodAsync("OnSaveRequested");
+                });
+
                 editor.onDidChangeModelContent(() => {
                     dotnetRef.invokeMethodAsync("OnContentChanged");
                 });

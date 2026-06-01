@@ -133,6 +133,18 @@ public enum DatabaseObjectKind
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Server information (optional service) — generic key/value facts about the
+// connected server: version, edition, host, current user, ...
+// ─────────────────────────────────────────────────────────────────────────────
+
+public interface IServerInfoProvider
+{
+    Task<IReadOnlyList<ServerInfoItem>> GetServerInfoAsync(CancellationToken ct);
+}
+
+public sealed record ServerInfoItem(string Label, string Value);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Query execution (opaque text in, generic records out)
 // ─────────────────────────────────────────────────────────────────────────────
 

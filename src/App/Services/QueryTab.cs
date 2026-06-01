@@ -1,4 +1,3 @@
-using Lexql.Core.Abstractions;
 using Lexql.Core.Relational.Sql;
 using Lexql.Core.Results;
 
@@ -26,9 +25,19 @@ public sealed class QueryTab
 
     public EditabilityInfo? Editability { get; set; }
 
-    public string? Status { get; set; }
+    public List<OutputEntry> Output { get; } = [];
 
-    public string? Error { get; set; }
+    public OutputEntry? LastOutput => Output.Count > 0 ? Output[^1] : null;
 
-    public IReadOnlyList<DiagnosticMessage> Messages { get; set; } = [];
+    public bool HasErrors => Output.Any(e => e.Kind == OutputKind.Error);
 }
+
+public enum OutputKind
+{
+    Info,
+    Success,
+    Warning,
+    Error,
+}
+
+public sealed record OutputEntry(DateTime Time, OutputKind Kind, string Text, double? ElapsedMs = null);

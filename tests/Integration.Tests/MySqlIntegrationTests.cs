@@ -140,6 +140,18 @@ public abstract class MySqlIntegrationTests
         Assert.Contains(_fixture.Database, namespaces);
     }
 
+    [Fact]
+    public async Task ServerInfo_ReportsVersionAndUser()
+    {
+        await using var connection = OpenConnection();
+        await connection.OpenAsync();
+
+        var info = await new MySqlServerInfo(connection).GetServerInfoAsync(CancellationToken.None);
+
+        Assert.Contains(info, i => i.Label == "Version" && i.Value.Length > 0);
+        Assert.Contains(info, i => i.Label == "User" && i.Value.Length > 0);
+    }
+
     private static async Task<object?> ScalarAsync(MySqlQueryExecutor executor, string sql)
     {
         var execution = await executor.ExecuteAsync(new QueryRequest(sql), CancellationToken.None);

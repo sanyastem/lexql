@@ -18,6 +18,9 @@
     public EventCallback OnChanged { get; set; }
 
     [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
     public Func<string, int, Task<IReadOnlyList<CompletionEntry>>>? CompletionSource { get; set; }
 
     private ElementReference _host;
@@ -61,6 +64,9 @@
 
     [JSInvokable]
     public Task OnContentChanged() => OnChanged.InvokeAsync();
+
+    [JSInvokable]
+    public Task OnSaveRequested() => OnSave.InvokeAsync();
 
     [JSInvokable]
     public async Task<IReadOnlyList<CompletionEntry>> GetCompletions(string text, int offset)

@@ -94,7 +94,8 @@
 
             <SqlEditor @key="active.Id" @ref="_editor"
                        InitialValue="@active.Sql" OnRun="RunCurrentAsync" OnRunAll="RunAllAsync"
-                       OnChanged="MarkDirty" CompletionSource="GetCompletionsAsync" />
+                       OnChanged="MarkDirty" OnSave="() => SaveTabAsync(Workspace.ActiveTab)"
+                       CompletionSource="GetCompletionsAsync" />
 
             <div class="query-actions">
                 <button class="btn-run" title="F5" @onclick="RunAllAsync" disabled="@(_running || ConnectionOf(active) is null)">
@@ -108,28 +109,15 @@
                     <button class="btn-stop" @onclick="Stop">@L["query.stop"]</button>
                 }
                 <label class="limit">@L["query.limit"] <input class="limit-input" type="number" min="1" @bind="active.RowLimit" /></label>
-                @if (active.Status is not null)
+                @if (_running)
                 {
-                    <span class="run-status">@active.Status</span>
+                    <span class="run-live"><span class="spinner"></span> @L["query.running"]</span>
+                }
+                else if (active.LastOutput is { } last)
+                {
+                    <span class="run-status @StatusClass(last.Kind)">@StatusText(last)</span>
                 }
             </div>
-
-            @if (active.Error is not null)
-            {
-                <p class="status error">@active.Error</p>
-            }
-
-            @if (active.Messages.Count > 0)
-            {
-                <ul class="message-panel">
-                    @foreach (var message in active.Messages)
-                    {
-                        <li class="message @message.Severity.ToString().ToLowerInvariant()">
-                            <span class="message-sev">@message.Severity</span> @message.Text
-                        </li>
-                    }
-                </ul>
-            }
         </section>
 
         <section class="panel result-panel">
@@ -159,6 +147,69 @@
                 <p class="status muted">@L["query.runPrompt"]</p>
             }
         </section>
+
+        @if (active.Output.Count > 0)
+        {
+            <section class="output-dock">
+                <div class="dock-block @(_outputOpen ? "open" : null)">
+                    <div class="dock-head" @onclick="() => _outputOpen = !_outputOpen">
+                        <span class="dock-toggle">@(_outputOpen ? "▾" : "▸")</span>
+                        <span class="dock-title">@L["output.title"]</span>
+                        @if (_running)
+                        {
+                            <span class="dock-summary running"><span class="spinner"></span> @L["query.running"]</span>
+                        }
+                        else if (active.LastOutput is { } last)
+                        {
+                            <span class="dock-summary @StatusClass(last.Kind)">@StatusText(last)</span>
+                        }
+                        <span class="dock-spacer"></span>
+                        <button class="btn-icon" title="@L["output.clear"]" @onclick:stopPropagation="true" @onclick="() => ClearOutput(active)">
+                            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4 H13" /><path d="M5.5 4 V2.8 H10.5 V4" /><path d="M4 4 L4.7 13.2 H11.3 L12 4" /></svg>
+                        </button>
+                    </div>
+                    @if (_outputOpen)
+                    {
+                        <ul class="dock-log">
+                            @foreach (var entry in active.Output)
+                            {
+                                <li class="log-@(entry.Kind.ToString().ToLowerInvariant())">
+                                    <span class="log-time">@entry.Time.ToString("HH:mm:ss")</span>
+                                    <span class="log-text">@entry.Text</span>
+                                    @if (entry.ElapsedMs is { } ms)
+                                    {
+                                        <span class="log-dur">@ms.ToString("F0") @L["output.ms"]</span>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+
+                @if (active.HasErrors)
+                {
+                    <div class="dock-block errors @(_errorsOpen ? "open" : null)">
+                        <div class="dock-head" @onclick="() => _errorsOpen = !_errorsOpen">
+                            <span class="dock-toggle">@(_errorsOpen ? "▾" : "▸")</span>
+                            <span class="dock-title">@L["output.errors"]</span>
+                            <span class="dock-badge">@active.Output.Count(e => e.Kind == OutputKind.Error)</span>
+                        </div>
+                        @if (_errorsOpen)
+                        {
+                            <ul class="dock-log">
+                                @foreach (var entry in active.Output.Where(e => e.Kind == OutputKind.Error))
+                                {
+                                    <li class="log-error">
+                                        <span class="log-time">@entry.Time.ToString("HH:mm:ss")</span>
+                                        <span class="log-text">@entry.Text</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+            </section>
+        }
 
         @if (_previewSql is not null)
         {
@@ -207,6 +258,35 @@
     private ResultGrid? _grid;
     private bool _running;
     private CancellationTokenSource? _cts;
+
+    private bool _outputOpen = true;
+    private bool _errorsOpen = true;
+
+    private static void Log(QueryTab tab, OutputKind kind, string text, double? elapsedMs = null)
+    {
+        tab.Output.Add(new OutputEntry(DateTime.Now, kind, text, elapsedMs));
+        if (tab.Output.Count > 200)
+        {
+            tab.Output.RemoveRange(0, tab.Output.Count - 200);
+        }
+    }
+
+    private void ClearOutput(QueryTab tab)
+    {
+        tab.Output.Clear();
+        StateHasChanged();
+    }
+
+    private static string StatusClass(OutputKind kind) => kind switch
+    {
+        OutputKind.Error => "error",
+        OutputKind.Warning => "warning",
+        OutputKind.Success => "success",
+        _ => "info",
+    };
+
+    private string StatusText(OutputEntry entry) =>
+        entry.ElapsedMs is { } ms ? $"{entry.Text} · {ms:F0} {L["output.ms"]}" : entry.Text;
 
     private bool _showHistory;
     private string? _historySearch;
@@ -504,7 +584,8 @@
         }
         catch (QueryExecutionException ex)
         {
-            tab.Error = ex.Message;
+            Log(tab, OutputKind.Error, ex.Message);
+            _errorsOpen = true;
             _previewSql = null;
             _pendingCommands = null;
         }
@@ -619,11 +700,9 @@
         }
 
         _running = true;
-        tab.Error = null;
-        tab.Status = null;
         tab.Grid = null;
         tab.Editability = null;
-        tab.Messages = [];
+        Log(tab, OutputKind.Info, string.Format(L["output.executing"], SingleLine(sql)));
         _cts = new CancellationTokenSource();
         try
         {
@@ -634,29 +713,37 @@
 
             var request = new QueryRequest(text, RowLimit: tab.RowLimit);
             var execution = await connection.Connection.QueryExecutor.ExecuteAsync(request, _cts.Token);
-            tab.Messages = execution.Messages;
 
+            foreach (var message in execution.Messages)
+            {
+                Log(tab, message.Severity == DiagnosticSeverity.Error ? OutputKind.Error
+                    : message.Severity == DiagnosticSeverity.Warning ? OutputKind.Warning
+                    : OutputKind.Info, message.Text);
+            }
+
+            var elapsed = execution.Elapsed.TotalMilliseconds;
             var resultSet = execution.ResultSets.FirstOrDefault();
             if (resultSet is not null)
             {
                 tab.Grid = await ResultGridBuilder.BuildAsync(resultSet, _cts.Token);
-                tab.Status = $"{tab.Grid.Rows.Count} rows in {execution.Elapsed.TotalMilliseconds:F0} ms";
+                Log(tab, OutputKind.Success, string.Format(L["output.rows"], tab.Grid.Rows.Count), elapsed);
                 tab.Editability = await AnalyzeEditabilityAsync(connection, targetDatabase, sql, tab.Grid);
             }
             else
             {
-                tab.Status = $"{execution.AffectedCount ?? 0} affected in {execution.Elapsed.TotalMilliseconds:F0} ms";
+                Log(tab, OutputKind.Success, string.Format(L["output.affected"], execution.AffectedCount ?? 0), elapsed);
             }
 
             await History.AddHistoryAsync(sql, connection.Name, true, CancellationToken.None);
         }
         catch (OperationCanceledException)
         {
-            tab.Status = L["query.canceled"];
+            Log(tab, OutputKind.Warning, L["query.canceled"]);
         }
         catch (QueryExecutionException ex)
         {
-            tab.Error = FormatError(ex);
+            Log(tab, OutputKind.Error, FormatError(ex));
+            _errorsOpen = true;
             await History.AddHistoryAsync(sql, connection.Name, false, CancellationToken.None);
         }
         finally
@@ -665,6 +752,12 @@
             _cts?.Dispose();
             _cts = null;
         }
+    }
+
+    private static string SingleLine(string sql)
+    {
+        var collapsed = string.Join(' ', sql.Split('\n', '\r').Select(l => l.Trim()).Where(l => l.Length > 0));
+        return collapsed.Length > 80 ? collapsed[..80] + "…" : collapsed;
     }
 
     private static string FormatError(QueryExecutionException ex)

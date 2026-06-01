@@ -3,44 +3,21 @@
 @implements IDisposable
 
 <div class="server @(IsActive ? "active" : null)">
-    <div class="server-head" @onclick="ToggleAsync">
+    <div class="server-head" @onclick="ToggleAsync" @oncontextmenu="OpenMenu" @oncontextmenu:preventDefault="true">
         <span class="server-main">
             <span class="tree-chevron">@(Expanded ? "▾" : "▸")</span>
             <span class="tree-icon accent"><TreeIcon Kind="server" /></span>
             <span class="status-dot @(Connection is null ? "offline" : "online")" title="@(Connection is null ? L["conn.offline"] : L["conn.online"])"></span>
             <span class="server-name">@Name</span>
-            @if (_connecting)
+            @if (_connecting || _refreshing)
             {
                 <span class="tree-loading">…</span>
             }
         </span>
-        <span class="server-actions" @onclick:stopPropagation="true">
-            @if (Connection is { } conn)
-            {
-                @if (conn.Connection.IsReadOnly)
-                {
-                    <span class="ro-badge" title="Read-only">RO</span>
-                }
-                <button class="btn-icon" title="@L["conn.refresh"]" disabled="@_refreshing" @onclick="() => RefreshAsync(conn.Id)">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8 a4.5 4.5 0 1 1 -1.3 -3.2" /><path d="M12.8 2.6 V5.2 H10.2" /></svg>
-                </button>
-                <button class="btn-icon danger" title="@L["conn.disconnect"]" @onclick="() => Workspace.DisconnectAsync(conn.Id)">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 V7.5" /><path d="M11.2 4.3 a4.4 4.4 0 1 1 -6.4 0" /></svg>
-                </button>
-            }
-            else
-            {
-                @if (Profile is not null)
-                {
-                    <button class="btn-icon accent" title="@L["conn.connect"]" disabled="@_connecting" @onclick="ConnectAsync">
-                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 V7.5" /><path d="M11.2 4.3 a4.4 4.4 0 1 1 -6.4 0" /></svg>
-                    </button>
-                    <button class="btn-icon" title="@L["conn.edit"]" @onclick="() => OnEdit.InvokeAsync(Profile)">
-                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.3 2.4 L13.6 5.7 L6 13.3 H2.7 V10 Z" /></svg>
-                    </button>
-                }
-            }
-        </span>
+        @if (Connection is { Connection.IsReadOnly: true })
+        {
+            <span class="ro-badge" title="Read-only">RO</span>
+        }
     </div>
 
     @if (_expanded && Connection is { } c)
@@ -59,6 +36,65 @@
     }
 </div>
 
+@if (_menuOpen)
+{
+    <div class="context-overlay" @onclick="CloseMenu" @oncontextmenu:preventDefault="true" @oncontextmenu="CloseMenu"></div>
+    <div class="context-menu" style="left:@(_menuX)px; top:@(_menuY)px">
+        @if (Connection is { } conn)
+        {
+            <button class="ctx-item" @onclick="() => RefreshAsync(conn.Id)">@L["conn.refresh"]</button>
+            <button class="ctx-item" @onclick="() => DisconnectAsync(conn.Id)">@L["conn.disconnect"]</button>
+            <div class="ctx-sep"></div>
+            <button class="ctx-item" @onclick="ShowPropertiesAsync">@L["conn.properties"]</button>
+        }
+        else
+        {
+            <button class="ctx-item" @onclick="ConnectFromMenuAsync" disabled="@(Profile is null)">@L["conn.connect"]</button>
+        }
+
+        @if (Profile is not null)
+        {
+            <div class="ctx-sep"></div>
+            <button class="ctx-item" @onclick="EditFromMenu">@L["conn.edit"]</button>
+        }
+    </div>
+}
+
+@if (_showProps)
+{
+    <div class="modal-overlay" @onclick="CloseProperties">
+        <div class="lx-modal props-modal" @onclick:stopPropagation="true">
+            <h3>@Name — @L["conn.properties"]</h3>
+            @if (_propsLoading)
+            {
+                <p class="status muted">@L["tree.loading"]</p>
+            }
+            else if (_propsError is not null)
+            {
+                <p class="status error">@_propsError</p>
+            }
+            else
+            {
+                <table class="props-table">
+                    <tbody>
+                        @foreach (var item in _serverInfo)
+                        {
+                            <tr>
+                                <th>@item.Label</th>
+                                <td>@item.Value</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            <div class="actions">
+                <span class="spacer"></span>
+                <button class="btn-secondary" @onclick="CloseProperties">@L["conn.close"]</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter, EditorRequired]
     public string Name { get; set; } = string.Empty;
@@ -73,6 +109,15 @@
     private bool _connecting;
     private bool _refreshing;
     private string? _error;
+
+    private bool _menuOpen;
+    private double _menuX;
+    private double _menuY;
+
+    private bool _showProps;
+    private bool _propsLoading;
+    private string? _propsError;
+    private IReadOnlyList<ServerInfoItem> _serverInfo = [];
 
     private ServerConnection? Connection => Workspace.Connections.FirstOrDefault(c => c.Name == Name);
 
@@ -122,6 +167,7 @@
 
     private async Task RefreshAsync(string id)
     {
+        CloseMenu();
         _refreshing = true;
         try
         {
@@ -132,4 +178,68 @@
             _refreshing = false;
         }
     }
+
+    private void OpenMenu(MouseEventArgs e)
+    {
+        if (Connection is { } existing)
+        {
+            Workspace.SetActiveConnection(existing.Id);
+        }
+
+        _menuX = e.ClientX;
+        _menuY = e.ClientY;
+        _menuOpen = true;
+    }
+
+    private void CloseMenu() => _menuOpen = false;
+
+    private async Task ConnectFromMenuAsync()
+    {
+        CloseMenu();
+        await ConnectAsync();
+    }
+
+    private void EditFromMenu()
+    {
+        CloseMenu();
+        if (Profile is not null)
+        {
+            OnEdit.InvokeAsync(Profile);
+        }
+    }
+
+    private async Task DisconnectAsync(string id)
+    {
+        CloseMenu();
+        await Workspace.DisconnectAsync(id);
+    }
+
+    private async Task ShowPropertiesAsync()
+    {
+        CloseMenu();
+        if (Connection is not { } conn)
+        {
+            return;
+        }
+
+        _showProps = true;
+        _propsLoading = true;
+        _propsError = null;
+        _serverInfo = [];
+
+        try
+        {
+            _serverInfo = await Workspace.GetServerInfoAsync(conn.Id, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _propsError = ex.Message;
+        }
+        finally
+        {
+            _propsLoading = false;
+        }
+    }
+
+    private void CloseProperties() => _showProps = false;
 }

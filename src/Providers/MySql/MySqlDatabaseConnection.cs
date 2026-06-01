@@ -16,6 +16,7 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
     private readonly IRelationalSchemaReader _schemaReader;
     private readonly IRelationalCatalog _catalog;
     private readonly ISqlCompletionProvider _completion;
+    private readonly IServerInfoProvider _serverInfo;
 
     public MySqlDatabaseConnection(
         IDatabaseProvider provider,
@@ -36,6 +37,7 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
         _schemaReader = new CachingSchemaReader(new MySqlSchemaReader(connection));
         _catalog = new MySqlCatalog(connection);
         _completion = new RelationalCompletionProvider(_schemaReader, connection.Database);
+        _serverInfo = new MySqlServerInfo(connection);
         ObjectExplorer = new RelationalObjectExplorer(_catalog, _schemaReader);
         QueryExecutor = new MySqlQueryExecutor(connection, options);
     }
@@ -56,7 +58,8 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
         ?? QueryExecutor as TService
         ?? _schemaReader as TService
         ?? _catalog as TService
-        ?? _completion as TService;
+        ?? _completion as TService
+        ?? _serverInfo as TService;
 
     public async ValueTask DisposeAsync()
     {

@@ -521,20 +521,6 @@ input, select, button, textarea {
     white-space: nowrap;
 }
 
-.server-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.1rem;
-    flex-shrink: 0;
-    opacity: 0;
-    transition: opacity 0.1s ease;
-}
-
-.server-head:hover .server-actions,
-.server.active .server-actions {
-    opacity: 1;
-}
-
 .server-error {
     color: var(--danger);
     font-size: 0.76rem;
@@ -816,6 +802,83 @@ input, select, button, textarea {
     filter: none;
 }
 
+.context-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+}
+
+.context-menu {
+    position: fixed;
+    z-index: 901;
+    min-width: 180px;
+    padding: 0.3rem;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-pop);
+}
+
+.ctx-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    color: var(--fg);
+    cursor: pointer;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.84rem;
+}
+
+.ctx-item:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.ctx-item:disabled {
+    color: var(--fg-faint);
+    cursor: default;
+    background: transparent;
+}
+
+.ctx-sep {
+    height: 1px;
+    margin: 0.25rem 0.3rem;
+    background: var(--border);
+}
+
+.props-modal {
+    width: min(460px, 92vw);
+}
+
+.props-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.props-table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--fg-muted);
+    padding: 0.32rem 0.8rem 0.32rem 0;
+    white-space: nowrap;
+    vertical-align: top;
+}
+
+.props-table td {
+    padding: 0.32rem 0;
+    color: var(--fg);
+    word-break: break-all;
+}
+
+.props-table tr + tr th,
+.props-table tr + tr td {
+    border-top: 1px solid var(--border);
+}
+
 .close-modal {
     width: min(420px, 92vw);
 }
@@ -853,10 +916,30 @@ input, select, button, textarea {
     color: var(--fg);
 }
 
-.run-status {
+.run-status, .run-live {
     font-size: 0.8rem;
     color: var(--fg-muted);
     margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.run-status.success { color: var(--success); }
+.run-status.error { color: var(--danger); }
+.run-status.warning { color: var(--warning); }
+
+.spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 .status {
@@ -876,38 +959,110 @@ input, select, button, textarea {
     color: var(--fg-muted);
 }
 
-.message-panel {
-    list-style: none;
-    margin: 0.5rem 0 0;
-    padding: 0;
+.output-dock {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.dock-block {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+    overflow: hidden;
+}
+
+.dock-block.errors {
+    border-color: var(--danger-soft);
+}
+
+.dock-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.7rem;
+    cursor: pointer;
     font-size: 0.8rem;
+    user-select: none;
 }
 
-.message {
-    padding: 0.3rem 0.5rem;
-    border-radius: var(--radius-sm);
-    margin-bottom: 0.25rem;
+.dock-head:hover {
+    background: var(--row-hover);
 }
 
-.message .message-sev {
-    font-weight: 700;
-    margin-right: 0.35rem;
+.dock-toggle {
+    color: var(--fg-faint);
+    font-size: 0.6rem;
+    width: 0.7rem;
 }
 
-.message.warning {
-    background: var(--warning-soft);
-    color: var(--warning);
+.dock-title {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.7rem;
+    color: var(--fg-muted);
 }
 
-.message.error {
+.dock-summary {
+    color: var(--fg-muted);
+}
+
+.dock-summary.success { color: var(--success); }
+.dock-summary.error { color: var(--danger); }
+.dock-summary.warning { color: var(--warning); }
+
+.dock-spacer {
+    flex: 1;
+}
+
+.dock-badge {
     background: var(--danger-soft);
     color: var(--danger);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.05rem 0.4rem;
+    border-radius: 9px;
 }
 
-.message.info {
-    background: var(--info-soft);
-    color: var(--accent);
+.dock-log {
+    list-style: none;
+    margin: 0;
+    padding: 0.2rem 0;
+    max-height: 180px;
+    overflow: auto;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
 }
+
+.dock-log li {
+    display: flex;
+    gap: 0.7rem;
+    padding: 0.2rem 0.7rem;
+    align-items: baseline;
+}
+
+.dock-log .log-time {
+    color: var(--fg-faint);
+    flex-shrink: 0;
+}
+
+.dock-log .log-text {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--fg);
+}
+
+.dock-log .log-dur {
+    color: var(--fg-muted);
+    flex-shrink: 0;
+}
+
+.dock-log .log-error .log-text { color: var(--danger); }
+.dock-log .log-warning .log-text { color: var(--warning); }
+.dock-log .log-success .log-text { color: var(--success); }
 
 .edit-toolbar {
     display: flex;

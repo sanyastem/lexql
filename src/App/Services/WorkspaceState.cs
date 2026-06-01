@@ -126,6 +126,13 @@ public sealed class WorkspaceState
         Notify();
     }
 
+    public async Task<IReadOnlyList<ServerInfoItem>> GetServerInfoAsync(string connectionId, CancellationToken ct)
+    {
+        var server = Connections.FirstOrDefault(c => c.Id == connectionId);
+        var info = server?.Connection.GetService<IServerInfoProvider>();
+        return info is null ? [] : await info.GetServerInfoAsync(ct);
+    }
+
     public async Task RefreshConnectionAsync(string connectionId)
     {
         var server = Connections.FirstOrDefault(c => c.Id == connectionId);
