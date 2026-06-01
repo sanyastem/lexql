@@ -46,6 +46,11 @@ public static class ResultExport
 
     private static string CsvField(string text)
     {
+        if (text.Length > 0 && "=+-@\t\r".IndexOf(text[0]) >= 0)
+        {
+            text = "'" + text;
+        }
+
         if (text.IndexOfAny(['"', ',', '\n', '\r']) < 0)
         {
             return text;
