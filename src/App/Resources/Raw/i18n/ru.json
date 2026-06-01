@@ -48,6 +48,8 @@
   "result.refresh": "Обновить результат",
   "result.exportCsv": "Экспорт в CSV",
   "result.exportJson": "Экспорт в JSON",
+  "value.title": "Значение",
+  "value.copy": "Копировать значение",
   "grid.addRow": "Добавить строку",
   "grid.deleteSelected": "Удалить выбранные",
   "grid.preview": "Превью и применить",

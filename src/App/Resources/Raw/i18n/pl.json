@@ -48,6 +48,8 @@
   "result.refresh": "Odśwież wynik",
   "result.exportCsv": "Eksportuj do CSV",
   "result.exportJson": "Eksportuj do JSON",
+  "value.title": "Wartość",
+  "value.copy": "Kopiuj wartość",
   "grid.addRow": "Dodaj wiersz",
   "grid.deleteSelected": "Usuń zaznaczone",
   "grid.preview": "Podgląd i zastosuj",

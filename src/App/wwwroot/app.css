@@ -808,6 +808,44 @@ input, select, button, textarea {
     padding: 1.5rem;
 }
 
+.value-viewer {
+    flex: 0 0 auto;
+    max-height: 35%;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border-strong);
+    background: var(--panel-2);
+}
+
+.value-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.value-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--fg-muted);
+}
+
+.value-body {
+    margin: 0;
+    padding: 0.5rem 0.7rem;
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--fg);
+    -webkit-user-select: text;
+    user-select: text;
+}
+
 .tab-strip {
     display: flex;
     align-items: center;

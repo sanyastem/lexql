@@ -48,6 +48,8 @@
   "result.refresh": "Refresh result",
   "result.exportCsv": "Export to CSV",
   "result.exportJson": "Export to JSON",
+  "value.title": "Value",
+  "value.copy": "Copy value",
   "grid.addRow": "Add row",
   "grid.deleteSelected": "Delete selected",
   "grid.preview": "Preview & apply",

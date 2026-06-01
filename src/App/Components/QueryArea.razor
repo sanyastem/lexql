@@ -8,6 +8,7 @@
 @inject LocalizationService L
 @inject IQueryHistoryStore History
 @inject IFileDialog FileDialog
+@inject IJSRuntime JS
 @implements IDisposable
 
 <main class="editor-area">
@@ -152,13 +153,27 @@
                     <div class="result-scroll">
                         @if (active.Editability is { IsEditable: true } edit)
                         {
-                            <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="edit.KeyColumns" />
+                            <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="edit.KeyColumns" OnCellSelected="ShowCellValue" />
                         }
                         else
                         {
-                            <ResultGrid Model="active.Grid" />
+                            <ResultGrid Model="active.Grid" OnCellSelected="ShowCellValue" />
                         }
                     </div>
+                    @if (_cellSelected)
+                    {
+                        <div class="value-viewer">
+                            <div class="value-head">
+                                <span class="value-title">@L["value.title"]</span>
+                                <span class="toolbar-spacer"></span>
+                                <button class="btn-icon" title="@L["value.copy"]" @onclick="CopyCellAsync">
+                                    <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8" height="9" rx="1" /><path d="M3 11 V3 H10" /></svg>
+                                </button>
+                                <button class="btn-icon" title="@L["conn.close"]" @onclick="() => _cellSelected = false">×</button>
+                            </div>
+                            <pre class="value-body">@(_cellValue.Length == 0 ? "NULL" : _cellValue)</pre>
+                        </div>
+                    }
                 }
                 else
                 {
@@ -280,6 +295,26 @@
 
     private bool _outputOpen = true;
     private bool _errorsOpen = true;
+
+    private bool _cellSelected;
+    private string _cellValue = string.Empty;
+
+    private void ShowCellValue(string? value)
+    {
+        _cellValue = value ?? string.Empty;
+        _cellSelected = true;
+    }
+
+    private async Task CopyCellAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", _cellValue);
+        }
+        catch (Exception)
+        {
+        }
+    }
 
     private static void Log(QueryTab tab, OutputKind kind, string text, double? elapsedMs = null, string? detail = null)
     {

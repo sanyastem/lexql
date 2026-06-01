@@ -50,6 +50,14 @@ export function renderGrid(element, columns, rows, options) {
         selectableRows: editable,
     });
 
+    const dotnetRef = options.dotnetRef;
+    if (dotnetRef) {
+        table.on("cellClick", (e, cell) => {
+            const value = cell.getValue();
+            dotnetRef.invokeMethodAsync("OnCellClicked", value === null || value === undefined ? null : String(value));
+        });
+    }
+
     if (editable) {
         data.forEach((record) => state.originalKeys.set(record._i, keyMap(state, record)));
         table.on("cellEdited", (cell) => {

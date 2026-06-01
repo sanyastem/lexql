@@ -14,8 +14,12 @@
     [Parameter]
     public IReadOnlyList<string> KeyColumns { get; set; } = [];
 
+    [Parameter]
+    public EventCallback<string?> OnCellSelected { get; set; }
+
     private ElementReference _element;
     private IJSObjectReference? _module;
+    private DotNetObjectReference<ResultGrid>? _selfRef;
     private bool _dirty;
 
     protected override void OnParametersSet() => _dirty = true;
@@ -29,11 +33,15 @@
 
         _dirty = false;
         _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/grid.js");
+        _selfRef ??= DotNetObjectReference.Create(this);
 
         var columns = Model.Columns.Select(c => new { name = c.Name, type = c.Type, numeric = c.Numeric });
-        var options = new { editable = Editable, keyColumns = KeyColumns };
+        var options = new { editable = Editable, keyColumns = KeyColumns, dotnetRef = _selfRef };
         await _module.InvokeVoidAsync("renderGrid", _element, columns, Model.Rows, options);
     }
+
+    [JSInvokable]
+    public Task OnCellClicked(string? value) => OnCellSelected.InvokeAsync(value);
 
     public async Task<GridChangeSet?> GetChangesAsync() =>
         _module is null ? null : await _module.InvokeAsync<GridChangeSet>("getChanges", _element);
@@ -60,5 +68,7 @@
         {
             await _module.DisposeAsync();
         }
+
+        _selfRef?.Dispose();
     }
 }
