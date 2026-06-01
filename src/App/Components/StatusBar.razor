@@ -1,0 +1,67 @@
+@inject WorkspaceState Workspace
+@inject LocalizationService L
+@implements IDisposable
+
+<footer class="status-bar">
+    <span class="status-dot @(Connection is null ? "offline" : "online")"></span>
+    @if (Connection is { } conn)
+    {
+        <span class="sb-item">@conn.Name</span>
+        @if (Database is { } db)
+        {
+            <span class="sb-sep">/</span>
+            <span class="sb-item">@db</span>
+        }
+        @if (conn.Connection.IsReadOnly)
+        {
+            <span class="ro-badge">RO</span>
+        }
+    }
+    else
+    {
+        <span class="sb-item muted">@L["status.notConnected"]</span>
+    }
+
+    <span class="sb-spacer"></span>
+
+    @if (Tab?.LastOutput is { } last)
+    {
+        <span class="sb-item @StatusClass(last.Kind)">@last.Text</span>
+        @if (last.ElapsedMs is { } ms)
+        {
+            <span class="sb-sep">·</span>
+            <span class="sb-item">@ms.ToString("F0") @L["output.ms"]</span>
+        }
+    }
+</footer>
+
+@code {
+    private QueryTab? Tab => Workspace.ActiveTab;
+
+    private ServerConnection? Connection =>
+        Tab is { } tab ? Workspace.ConnectionFor(tab) : Workspace.Active;
+
+    private string? Database => Tab?.Database ?? Connection?.DefaultNamespace;
+
+    protected override void OnInitialized()
+    {
+        Workspace.Changed += OnChanged;
+        L.Changed += OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private static string StatusClass(OutputKind kind) => kind switch
+    {
+        OutputKind.Error => "error",
+        OutputKind.Warning => "warning",
+        OutputKind.Success => "success",
+        _ => "info",
+    };
+
+    public void Dispose()
+    {
+        Workspace.Changed -= OnChanged;
+        L.Changed -= OnChanged;
+    }
+}

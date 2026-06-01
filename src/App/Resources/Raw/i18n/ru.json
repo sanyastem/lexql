@@ -57,6 +57,7 @@
   "tree.loading": "Загрузка схемы…",
   "tree.notConnected": "Не подключено.",
   "tree.filter": "Фильтр объектов…",
+  "status.notConnected": "Не подключено",
   "history.title": "История",
   "history.search": "Поиск по истории…",
   "history.saved": "Сохранённые запросы",

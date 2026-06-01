@@ -1678,3 +1678,44 @@ input, select, button, textarea {
 .status-bar-safe-area {
     display: none;
 }
+
+.status-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 26px;
+    padding: 0 0.8rem;
+    background: var(--titlebar-bg);
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+}
+
+.status-bar .status-dot {
+    width: 7px;
+    height: 7px;
+}
+
+.status-bar .sb-item {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.status-bar .sb-item.success { color: var(--success); }
+.status-bar .sb-item.error { color: var(--danger); }
+.status-bar .sb-item.warning { color: var(--warning); }
+
+.status-bar .sb-sep {
+    color: var(--fg-faint);
+}
+
+.status-bar .sb-spacer {
+    flex: 1;
+    min-width: 0.5rem;
+}
+
+.status-bar .ro-badge {
+    margin-left: 0.1rem;
+}
