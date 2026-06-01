@@ -29,6 +29,14 @@ public sealed class WorkspaceState
 
     public string? LastError { get; private set; }
 
+    public string TreeFilter { get; private set; } = string.Empty;
+
+    public void SetTreeFilter(string? value)
+    {
+        TreeFilter = value ?? string.Empty;
+        Notify();
+    }
+
     public string ProviderId => _provider.Id;
 
     public IReadOnlyList<ConnectionField> Fields => _provider.DescribeConnectionFields();

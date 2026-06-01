@@ -56,6 +56,7 @@
   "grid.applying": "Applying…",
   "tree.loading": "Loading schema…",
   "tree.notConnected": "Not connected.",
+  "tree.filter": "Filter objects…",
   "history.title": "History",
   "history.search": "Search history…",
   "history.saved": "Saved queries",

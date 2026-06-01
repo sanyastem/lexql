@@ -13,7 +13,7 @@
     @if (_expanded && _children is not null)
     {
         <ul class="tree-children">
-            @foreach (var child in _children)
+            @foreach (var child in _children.Where(MatchesFilter))
             {
                 <ObjectTreeNode Node="child" Explorer="Explorer" Namespace="@ChildNamespace" OnOpenData="OnOpenData" />
             }
@@ -33,6 +33,24 @@
 
     [Parameter]
     public EventCallback<ObjectRef> OnOpenData { get; set; }
+
+    [CascadingParameter(Name = "TreeFilter")]
+    public string? TreeFilter { get; set; }
+
+    private bool MatchesFilter(DatabaseObjectNode child)
+    {
+        if (string.IsNullOrWhiteSpace(TreeFilter))
+        {
+            return true;
+        }
+
+        if (child.Kind is DatabaseObjectKind.Namespace or DatabaseObjectKind.Other)
+        {
+            return true;
+        }
+
+        return child.Name.Contains(TreeFilter, StringComparison.OrdinalIgnoreCase);
+    }
 
     private string? ChildNamespace =>
         Node.Kind == DatabaseObjectKind.Namespace ? Node.Name : Namespace;

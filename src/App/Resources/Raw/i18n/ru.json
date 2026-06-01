@@ -56,6 +56,7 @@
   "grid.applying": "Применение…",
   "tree.loading": "Загрузка схемы…",
   "tree.notConnected": "Не подключено.",
+  "tree.filter": "Фильтр объектов…",
   "history.title": "История",
   "history.search": "Поиск по истории…",
   "history.saved": "Сохранённые запросы",

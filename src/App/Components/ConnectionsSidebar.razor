@@ -21,6 +21,19 @@
         <ConnectForm @key="FormKey" Template="_template" OnDone="HideForm" />
     }
 
+    @if (Workspace.Connections.Count > 0)
+    {
+        <div class="tree-filter">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" /><path d="M10.2 10.2 L13.5 13.5" /></svg>
+            <input class="tree-filter-input" placeholder="@L["tree.filter"]"
+                   value="@Workspace.TreeFilter" @oninput="e => Workspace.SetTreeFilter(e.Value?.ToString())" />
+            @if (!string.IsNullOrEmpty(Workspace.TreeFilter))
+            {
+                <button class="tree-filter-clear" @onclick="() => Workspace.SetTreeFilter(string.Empty)">×</button>
+            }
+        </div>
+    }
+
     <div class="servers">
         @if (Workspace.SavedProfiles.Count == 0 && Workspace.Connections.Count == 0)
         {
@@ -30,15 +43,17 @@
             </div>
         }
 
-        @foreach (var profile in Workspace.SavedProfiles)
-        {
-            <ServerNode @key="@("p:" + profile.Name)" Name="@profile.Name" Profile="profile" OnEdit="OpenTemplate" />
-        }
+        <CascadingValue Value="Workspace.TreeFilter" Name="TreeFilter">
+            @foreach (var profile in Workspace.SavedProfiles)
+            {
+                <ServerNode @key="@("p:" + profile.Name)" Name="@profile.Name" Profile="profile" OnEdit="OpenTemplate" />
+            }
 
-        @foreach (var server in AdHocConnections)
-        {
-            <ServerNode @key="@("c:" + server.Id)" Name="@server.Name" />
-        }
+            @foreach (var server in AdHocConnections)
+            {
+                <ServerNode @key="@("c:" + server.Id)" Name="@server.Name" />
+            }
+        </CascadingValue>
     </div>
 </aside>
 
