@@ -140,6 +140,14 @@
                         }
                         <span class="toolbar-spacer"></span>
                         <span class="result-count">@string.Format(L["output.rows"], active.Grid.Rows.Count)</span>
+                        <button class="btn-icon" title="@L["result.refresh"]" disabled="@_running" @onclick="RunAllAsync">
+                            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8 a4.5 4.5 0 1 1 -1.3 -3.2" /><path d="M12.8 2.6 V5.2 H10.2" /></svg>
+                        </button>
+                        @if (FileDialog.Supported)
+                        {
+                            <button class="btn-sm" title="@L["result.exportCsv"]" @onclick="() => ExportAsync(active, ExportFormat.Csv)">CSV</button>
+                            <button class="btn-sm" title="@L["result.exportJson"]" @onclick="() => ExportAsync(active, ExportFormat.Json)">JSON</button>
+                        }
                     </div>
                     <div class="result-scroll">
                         @if (active.Editability is { IsEditable: true } edit)
@@ -286,6 +294,22 @@
     {
         tab.Output.Clear();
         StateHasChanged();
+    }
+
+    private enum ExportFormat { Csv, Json }
+
+    private async Task ExportAsync(QueryTab tab, ExportFormat format)
+    {
+        if (tab.Grid is null)
+        {
+            return;
+        }
+
+        var content = format == ExportFormat.Csv
+            ? ResultExport.ToCsv(tab.Grid)
+            : ResultExport.ToJson(tab.Grid);
+        var extension = format == ExportFormat.Csv ? "csv" : "json";
+        await FileDialog.SaveAsync($"{tab.Title}.{extension}", content);
     }
 
     private static string StatusClass(OutputKind kind) => kind switch
