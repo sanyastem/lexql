@@ -65,151 +65,162 @@
 
     @if (Workspace.ActiveTab is { } active)
     {
-        <section class="panel query-panel">
-            <div class="query-head">
-                <select class="conn-select" value="@active.ConnectionId" @onchange="e => SetConnectionAsync(active, e)">
-                    <option value="">@L["query.noConnection"]</option>
-                    @foreach (var server in Workspace.Connections)
+        <div class="work-split">
+            <section class="query-pane">
+                <div class="query-toolbar">
+                    <button class="btn-run" title="F5" @onclick="RunAllAsync" disabled="@(_running || ConnectionOf(active) is null)">
+                        ▶ @(_running ? L["query.running"] : L["query.runAll"])
+                    </button>
+                    <button class="btn-run secondary" title="F8" @onclick="RunCurrentAsync" disabled="@(_running || ConnectionOf(active) is null)">
+                        @L["query.run"]
+                    </button>
+                    @if (_running)
                     {
-                        <option value="@server.Id">@server.Name</option>
+                        <button class="btn-stop" @onclick="Stop">@L["query.stop"]</button>
                     }
-                    @foreach (var profile in SavedNotConnected)
-                    {
-                        <option value="@("profile:" + profile.Name)">@profile.Name @L["query.connectSuffix"]</option>
-                    }
-                </select>
-                @if (DatabasesOf(active).Any())
-                {
-                    <select class="conn-select db-select" value="@(active.Database ?? string.Empty)" @onchange="e => SetDatabase(active, e)">
-                        <option value="">@L["query.database"]</option>
-                        @foreach (var db in DatabasesOf(active))
+                    <span class="toolbar-sep"></span>
+                    <select class="conn-select" value="@active.ConnectionId" @onchange="e => SetConnectionAsync(active, e)">
+                        <option value="">@L["query.noConnection"]</option>
+                        @foreach (var server in Workspace.Connections)
                         {
-                            <option value="@db">@db</option>
+                            <option value="@server.Id">@server.Name</option>
+                        }
+                        @foreach (var profile in SavedNotConnected)
+                        {
+                            <option value="@("profile:" + profile.Name)">@profile.Name @L["query.connectSuffix"]</option>
                         }
                     </select>
-                }
-                <span class="hint">@L["query.hint"]</span>
-                <button class="icon-btn history-toggle" title="@L["history.title"]" @onclick="ToggleHistoryAsync">🕘</button>
-            </div>
+                    @if (DatabasesOf(active).Any())
+                    {
+                        <select class="conn-select db-select" value="@(active.Database ?? string.Empty)" @onchange="e => SetDatabase(active, e)">
+                            <option value="">@L["query.database"]</option>
+                            @foreach (var db in DatabasesOf(active))
+                            {
+                                <option value="@db">@db</option>
+                            }
+                        </select>
+                    }
+                    <label class="limit">@L["query.limit"] <input class="limit-input" type="number" min="1" @bind="active.RowLimit" /></label>
+                    <span class="toolbar-spacer"></span>
+                    @if (_running)
+                    {
+                        <span class="run-live"><span class="spinner"></span> @L["query.running"]</span>
+                    }
+                    else if (active.LastOutput is { } last)
+                    {
+                        <span class="run-status @StatusClass(last.Kind)">@StatusText(last)</span>
+                    }
+                    <button class="btn-icon history-toggle" title="@L["history.title"]" @onclick="ToggleHistoryAsync">
+                        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" /><path d="M8 4.5 V8 L10.3 9.6" /></svg>
+                    </button>
+                </div>
 
-            <SqlEditor @key="active.Id" @ref="_editor"
-                       InitialValue="@active.Sql" OnRun="RunCurrentAsync" OnRunAll="RunAllAsync"
-                       OnChanged="MarkDirty" OnSave="() => SaveTabAsync(Workspace.ActiveTab)"
-                       CompletionSource="GetCompletionsAsync" />
+                <SqlEditor @key="active.Id" @ref="_editor"
+                           InitialValue="@active.Sql" OnRun="RunCurrentAsync" OnRunAll="RunAllAsync"
+                           OnChanged="MarkDirty" OnSave="() => SaveTabAsync(Workspace.ActiveTab)"
+                           CompletionSource="GetCompletionsAsync" />
+            </section>
 
-            <div class="query-actions">
-                <button class="btn-run" title="F5" @onclick="RunAllAsync" disabled="@(_running || ConnectionOf(active) is null)">
-                    @(_running ? L["query.running"] : L["query.runAll"])
-                </button>
-                <button class="btn-run secondary" title="F8" @onclick="RunCurrentAsync" disabled="@(_running || ConnectionOf(active) is null)">
-                    @L["query.run"]
-                </button>
-                @if (_running)
-                {
-                    <button class="btn-stop" @onclick="Stop">@L["query.stop"]</button>
-                }
-                <label class="limit">@L["query.limit"] <input class="limit-input" type="number" min="1" @bind="active.RowLimit" /></label>
-                @if (_running)
-                {
-                    <span class="run-live"><span class="spinner"></span> @L["query.running"]</span>
-                }
-                else if (active.LastOutput is { } last)
-                {
-                    <span class="run-status @StatusClass(last.Kind)">@StatusText(last)</span>
-                }
-            </div>
-        </section>
+            <div class="pane-resizer" data-resizer data-dir="y" data-min="90" data-max="900" data-store="lexql.editorH"></div>
 
-        <section class="panel result-panel">
-            @if (active.Grid is not null)
-            {
-                @if (active.Editability is { IsEditable: true } editable)
+            <section class="result-pane">
+                @if (active.Grid is not null)
                 {
-                    <div class="edit-toolbar">
-                        <span class="edit-badge editable">✎ @editable.Table — key: @string.Join(", ", editable.KeyColumns)</span>
-                        <button class="btn-sm" @onclick="() => _grid!.AddRowAsync()">@L["grid.addRow"]</button>
-                        <button class="btn-sm" @onclick="() => _grid!.DeleteSelectedAsync()">@L["grid.deleteSelected"]</button>
-                        <button class="btn-sm primary" @onclick="PrepareApplyAsync">@L["grid.preview"]</button>
+                    <div class="result-toolbar">
+                        @if (active.Editability is { IsEditable: true } editable)
+                        {
+                            <span class="edit-badge editable">✎ @editable.Table — key: @string.Join(", ", editable.KeyColumns)</span>
+                            <button class="btn-sm" @onclick="() => _grid!.AddRowAsync()">@L["grid.addRow"]</button>
+                            <button class="btn-sm" @onclick="() => _grid!.DeleteSelectedAsync()">@L["grid.deleteSelected"]</button>
+                            <button class="btn-sm primary" @onclick="PrepareApplyAsync">@L["grid.preview"]</button>
+                        }
+                        else if (active.Editability is { } readOnly)
+                        {
+                            <span class="edit-badge readonly">Read-only — @readOnly.Reason</span>
+                        }
+                        <span class="toolbar-spacer"></span>
+                        <span class="result-count">@string.Format(L["output.rows"], active.Grid.Rows.Count)</span>
                     </div>
-                    <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="editable.KeyColumns" />
+                    <div class="result-scroll">
+                        @if (active.Editability is { IsEditable: true } edit)
+                        {
+                            <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="edit.KeyColumns" />
+                        }
+                        else
+                        {
+                            <ResultGrid Model="active.Grid" />
+                        }
+                    </div>
                 }
                 else
                 {
-                    @if (active.Editability is { } readOnly)
-                    {
-                        <p class="edit-badge readonly">Read-only — @readOnly.Reason</p>
-                    }
-                    <ResultGrid Model="active.Grid" />
+                    <p class="status muted result-empty">@L["query.runPrompt"]</p>
                 }
-            }
-            else
+            </section>
+
+            @if (active.Output.Count > 0)
             {
-                <p class="status muted">@L["query.runPrompt"]</p>
-            }
-        </section>
-
-        @if (active.Output.Count > 0)
-        {
-            <section class="output-dock">
-                <div class="dock-block @(_outputOpen ? "open" : null)">
-                    <div class="dock-head" @onclick="() => _outputOpen = !_outputOpen">
-                        <span class="dock-toggle">@(_outputOpen ? "▾" : "▸")</span>
-                        <span class="dock-title">@L["output.title"]</span>
-                        @if (_running)
-                        {
-                            <span class="dock-summary running"><span class="spinner"></span> @L["query.running"]</span>
-                        }
-                        else if (active.LastOutput is { } last)
-                        {
-                            <span class="dock-summary @StatusClass(last.Kind)">@StatusText(last)</span>
-                        }
-                        <span class="dock-spacer"></span>
-                        <button class="btn-icon" title="@L["output.clear"]" @onclick:stopPropagation="true" @onclick="() => ClearOutput(active)">
-                            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4 H13" /><path d="M5.5 4 V2.8 H10.5 V4" /><path d="M4 4 L4.7 13.2 H11.3 L12 4" /></svg>
-                        </button>
-                    </div>
-                    @if (_outputOpen)
-                    {
-                        <ul class="dock-log">
-                            @foreach (var entry in active.Output)
+                <section class="output-dock">
+                    <div class="dock-block @(_outputOpen ? "open" : null)">
+                        <div class="dock-head" @onclick="() => _outputOpen = !_outputOpen">
+                            <span class="dock-toggle">@(_outputOpen ? "▾" : "▸")</span>
+                            <span class="dock-title">@L["output.title"]</span>
+                            @if (_running)
                             {
-                                <li class="log-@(entry.Kind.ToString().ToLowerInvariant())">
-                                    <span class="log-time">@entry.Time.ToString("HH:mm:ss")</span>
-                                    <span class="log-text">@entry.Text</span>
-                                    @if (entry.ElapsedMs is { } ms)
-                                    {
-                                        <span class="log-dur">@ms.ToString("F0") @L["output.ms"]</span>
-                                    }
-                                </li>
+                                <span class="dock-summary running"><span class="spinner"></span> @L["query.running"]</span>
                             }
-                        </ul>
-                    }
-                </div>
-
-                @if (active.HasErrors)
-                {
-                    <div class="dock-block errors @(_errorsOpen ? "open" : null)">
-                        <div class="dock-head" @onclick="() => _errorsOpen = !_errorsOpen">
-                            <span class="dock-toggle">@(_errorsOpen ? "▾" : "▸")</span>
-                            <span class="dock-title">@L["output.errors"]</span>
-                            <span class="dock-badge">@active.Output.Count(e => e.Kind == OutputKind.Error)</span>
+                            else if (active.LastOutput is { } last)
+                            {
+                                <span class="dock-summary @StatusClass(last.Kind)">@StatusText(last)</span>
+                            }
+                            <span class="dock-spacer"></span>
+                            <button class="btn-icon" title="@L["output.clear"]" @onclick:stopPropagation="true" @onclick="() => ClearOutput(active)">
+                                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4 H13" /><path d="M5.5 4 V2.8 H10.5 V4" /><path d="M4 4 L4.7 13.2 H11.3 L12 4" /></svg>
+                            </button>
                         </div>
-                        @if (_errorsOpen)
+                        @if (_outputOpen)
                         {
                             <ul class="dock-log">
-                                @foreach (var entry in active.Output.Where(e => e.Kind == OutputKind.Error))
+                                @foreach (var entry in active.Output)
                                 {
-                                    <li class="log-error">
+                                    <li class="log-@(entry.Kind.ToString().ToLowerInvariant())">
                                         <span class="log-time">@entry.Time.ToString("HH:mm:ss")</span>
-                                        <span class="log-text">@(entry.Detail ?? entry.Text)</span>
+                                        <span class="log-text">@entry.Text</span>
+                                        @if (entry.ElapsedMs is { } ms)
+                                        {
+                                            <span class="log-dur">@ms.ToString("F0") @L["output.ms"]</span>
+                                        }
                                     </li>
                                 }
                             </ul>
                         }
                     </div>
-                }
-            </section>
-        }
+
+                    @if (active.HasErrors)
+                    {
+                        <div class="dock-block errors @(_errorsOpen ? "open" : null)">
+                            <div class="dock-head" @onclick="() => _errorsOpen = !_errorsOpen">
+                                <span class="dock-toggle">@(_errorsOpen ? "▾" : "▸")</span>
+                                <span class="dock-title">@L["output.errors"]</span>
+                                <span class="dock-badge">@active.Output.Count(e => e.Kind == OutputKind.Error)</span>
+                            </div>
+                            @if (_errorsOpen)
+                            {
+                                <ul class="dock-log">
+                                    @foreach (var entry in active.Output.Where(e => e.Kind == OutputKind.Error))
+                                    {
+                                        <li class="log-error">
+                                            <span class="log-time">@entry.Time.ToString("HH:mm:ss")</span>
+                                            <span class="log-text">@(entry.Detail ?? entry.Text)</span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    }
+                </section>
+            }
+        </div>
 
         @if (_previewSql is not null)
         {

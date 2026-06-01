@@ -4,9 +4,11 @@
 @inject WorkspaceState Workspace
 @inject LocalizationService Localization
 @inject IQueryHistoryStore History
+@inject IJSRuntime JS
 
 <div class="shell">
     <ConnectionsSidebar />
+    <div class="col-resizer" data-resizer data-dir="x" data-min="220" data-max="640" data-store="lexql.sidebarW"></div>
     <QueryArea />
 </div>
 
@@ -29,6 +31,20 @@
     }
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private IJSObjectReference? _splitters;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            _splitters ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/splitter.js");
+            await _splitters.InvokeVoidAsync("init");
+        }
+        catch (Exception)
+        {
+        }
+    }
 
     public void Dispose()
     {

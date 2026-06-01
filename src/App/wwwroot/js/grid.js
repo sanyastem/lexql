@@ -44,7 +44,7 @@ export function renderGrid(element, columns, rows, options) {
         data,
         columns: columnDefs,
         index: "_i",
-        height: "440px",
+        height: "100%",
         layout: "fitDataStretch",
         placeholder: "No rows",
         selectableRows: editable,
