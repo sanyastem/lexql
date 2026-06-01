@@ -302,19 +302,10 @@ public sealed class WorkspaceState
         Notify();
     }
 
-    public IReadOnlyList<QueryTab> ClosableTabs(IEnumerable<string> ids)
+    public void CloseTabs(IEnumerable<string> ids)
     {
         var wanted = ids.ToHashSet();
-        return Tabs.Where(t => wanted.Contains(t.Id) && !HasUnsavedWork(t)).ToList();
-    }
-
-    public IReadOnlyList<string> CloseTabs(IEnumerable<string> ids)
-    {
-        var closable = ClosableTabs(ids);
-        foreach (var tab in closable)
-        {
-            Tabs.Remove(tab);
-        }
+        Tabs.RemoveAll(t => wanted.Contains(t.Id) && !HasUnsavedWork(t));
 
         if (ActiveTabId is { } active && Tabs.All(t => t.Id != active))
         {
@@ -322,7 +313,6 @@ public sealed class WorkspaceState
         }
 
         Notify();
-        return Tabs.Where(t => ids.Contains(t.Id)).Select(t => t.Id).ToList();
     }
 
     public IEnumerable<string> OtherTabIds(string keepId) =>

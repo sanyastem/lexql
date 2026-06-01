@@ -154,11 +154,11 @@
                     <div class="result-scroll">
                         @if (active.Editability is { IsEditable: true } edit)
                         {
-                            <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="edit.KeyColumns" OnCellSelected="ShowCellValue" />
+                            <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="edit.KeyColumns" OnCellSelected="_onCellSelected" />
                         }
                         else
                         {
-                            <ResultGrid Model="active.Grid" OnCellSelected="ShowCellValue" />
+                            <ResultGrid Model="active.Grid" OnCellSelected="_onCellSelected" />
                         }
                     </div>
                     @if (_cellSelected)
@@ -311,6 +311,7 @@
 
     private bool _cellSelected;
     private string _cellValue = string.Empty;
+    private EventCallback<string?> _onCellSelected;
 
     private void ShowCellValue(string? value)
     {
@@ -382,6 +383,7 @@
         Workspace.FlushActiveTab = SaveEditorAsync;
         Workspace.Changed += OnChanged;
         L.Changed += OnChanged;
+        _onCellSelected = EventCallback.Factory.Create<string?>(this, ShowCellValue);
     }
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
@@ -445,7 +447,11 @@
 
     private ServerConnection? ConnectionOf(QueryTab tab) => Workspace.ConnectionFor(tab);
 
-    private Task SwitchAsync(string id) => Workspace.SwitchTabAsync(id);
+    private Task SwitchAsync(string id)
+    {
+        _cellSelected = false;
+        return Workspace.SwitchTabAsync(id);
+    }
 
     private IEnumerable<ConnectionProfile> SavedNotConnected =>
         Workspace.SavedProfiles.Where(p => !Workspace.Connections.Any(c => c.Name == p.Name));
@@ -795,10 +801,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Workspace.ActiveTab is { PendingRun: true } tab && ConnectionOf(tab) is not null)
+        if (!_running && Workspace.ActiveTab is { PendingRun: true } tab && ConnectionOf(tab) is not null)
         {
             tab.PendingRun = false;
             await RunAsync(currentStatementOnly: false, explicitSql: tab.Sql);
+            StateHasChanged();
         }
     }
 
@@ -838,6 +845,7 @@
         }
 
         _running = true;
+        _cellSelected = false;
         tab.Grid = null;
         tab.Editability = null;
         Log(tab, OutputKind.Info, string.Format(L["output.executing"], SingleLine(sql)));
