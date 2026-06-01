@@ -15,4 +15,10 @@ public sealed class ServerConnection
     public IReadOnlyList<DatabaseObjectNode> Roots { get; set; } = [];
 
     public int RefreshToken { get; set; }
+
+    public IReadOnlyList<ObjectIndexItem>? ObjectIndex { get; set; }
+
+    public int ObjectIndexToken { get; set; } = -1;
 }
+
+public sealed record ObjectIndexItem(string Schema, string Name, bool IsView);

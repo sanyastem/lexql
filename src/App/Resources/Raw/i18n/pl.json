@@ -63,6 +63,8 @@
   "tree.notConnected": "Nie połączono.",
   "tree.filter": "Filtruj obiekty…",
   "status.notConnected": "Brak połączenia",
+  "palette.placeholder": "Przejdź do tabeli… (Ctrl+P)",
+  "palette.empty": "Brak wyników",
   "history.title": "Historia",
   "history.search": "Szukaj w historii…",
   "history.saved": "Zapisane zapytania",

@@ -141,6 +141,44 @@ public sealed class WorkspaceState
         return info is null ? [] : await info.GetServerInfoAsync(ct);
     }
 
+    public async Task<IReadOnlyList<ObjectIndexItem>> GetObjectIndexAsync(string connectionId, CancellationToken ct)
+    {
+        var server = Connections.FirstOrDefault(c => c.Id == connectionId);
+        if (server is null)
+        {
+            return [];
+        }
+
+        if (server.ObjectIndex is { } cached && server.ObjectIndexToken == server.RefreshToken)
+        {
+            return cached;
+        }
+
+        var reader = server.Connection.GetService<Lexql.Core.Relational.IRelationalSchemaReader>();
+        if (reader is null)
+        {
+            return [];
+        }
+
+        var items = new List<ObjectIndexItem>();
+        foreach (var ns in server.Roots.Where(r => r.Kind == DatabaseObjectKind.Namespace))
+        {
+            try
+            {
+                var model = await reader.LoadAsync(ns.Name, ct);
+                items.AddRange(model.Tables.Select(t => new ObjectIndexItem(ns.Name, t.Name, false)));
+                items.AddRange(model.Views.Select(v => new ObjectIndexItem(ns.Name, v.Name, true)));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+            }
+        }
+
+        server.ObjectIndex = items;
+        server.ObjectIndexToken = server.RefreshToken;
+        return items;
+    }
+
     public async Task RefreshConnectionAsync(string connectionId)
     {
         var server = Connections.FirstOrDefault(c => c.Id == connectionId);

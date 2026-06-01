@@ -1525,6 +1525,75 @@ input, select, button, textarea {
     z-index: 1000;
 }
 
+.palette-overlay {
+    align-items: flex-start;
+    padding-top: 12vh;
+}
+
+.palette {
+    width: min(560px, 92vw);
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-pop);
+    overflow: hidden;
+}
+
+.palette-input {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    color: var(--fg);
+    font-size: 0.95rem;
+    padding: 0.75rem 0.9rem;
+    outline: none;
+}
+
+.palette-input::placeholder {
+    color: var(--fg-faint);
+}
+
+.palette-list {
+    list-style: none;
+    margin: 0;
+    padding: 0.3rem;
+    max-height: 50vh;
+    overflow: auto;
+}
+
+.palette-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.palette-item:hover,
+.palette-item.active {
+    background: var(--accent-soft);
+}
+
+.palette-name {
+    color: var(--fg);
+    font-size: 0.85rem;
+}
+
+.palette-schema {
+    margin-left: auto;
+    color: var(--fg-faint);
+    font-size: 0.76rem;
+}
+
+.palette-empty {
+    margin: 0;
+    padding: 0.9rem;
+    color: var(--fg-muted);
+    font-size: 0.85rem;
+}
+
 .lx-modal {
     display: block;
     position: static;

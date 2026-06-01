@@ -63,6 +63,8 @@
   "tree.notConnected": "Не подключено.",
   "tree.filter": "Фильтр объектов…",
   "status.notConnected": "Не подключено",
+  "palette.placeholder": "Перейти к таблице… (Ctrl+P)",
+  "palette.empty": "Ничего не найдено",
   "history.title": "История",
   "history.search": "Поиск по истории…",
   "history.saved": "Сохранённые запросы",
