@@ -43,17 +43,15 @@
             </div>
         }
 
-        <CascadingValue Value="Workspace.TreeFilter" Name="TreeFilter">
-            @foreach (var profile in Workspace.SavedProfiles)
-            {
-                <ServerNode @key="@("p:" + profile.Name)" Name="@profile.Name" Profile="profile" OnEdit="OpenTemplate" />
-            }
+        @foreach (var profile in Workspace.SavedProfiles)
+        {
+            <ServerNode @key="@("p:" + profile.Name)" Name="@profile.Name" Profile="profile" OnEdit="OpenTemplate" />
+        }
 
-            @foreach (var server in AdHocConnections)
-            {
-                <ServerNode @key="@("c:" + server.Id)" Name="@server.Name" />
-            }
-        </CascadingValue>
+        @foreach (var server in AdHocConnections)
+        {
+            <ServerNode @key="@("c:" + server.Id)" Name="@server.Name" />
+        }
     </div>
 </aside>
 

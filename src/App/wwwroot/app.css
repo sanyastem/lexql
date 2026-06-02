@@ -677,6 +677,24 @@ input, select, button, textarea {
     flex-shrink: 0;
 }
 
+.filter-results .tree-label {
+    cursor: pointer;
+}
+
+.filter-schema {
+    margin-left: auto;
+    padding-left: 0.5rem;
+    color: var(--fg-faint);
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}
+
+.filter-note {
+    padding: 0.35rem 0.6rem;
+    color: var(--fg-muted);
+    font-size: 0.78rem;
+}
+
 .editor-area {
     flex: 1;
     display: flex;

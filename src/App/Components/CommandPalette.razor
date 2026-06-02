@@ -9,7 +9,11 @@
         <div class="palette" @onclick:stopPropagation="true">
             <input @ref="_input" class="palette-input" placeholder="@L["palette.placeholder"]"
                    value="@_query" @oninput="OnInput" @onkeydown="OnKeyDown" />
-            @if (_loading)
+            @if (_noConnection)
+            {
+                <p class="palette-empty">@L["status.notConnected"]</p>
+            }
+            else if (_loading)
             {
                 <p class="palette-empty">@L["tree.loading"]</p>
             }
@@ -42,6 +46,7 @@
 @code {
     private bool _open;
     private bool _loading;
+    private bool _noConnection;
     private string _query = string.Empty;
     private int _selected;
     private ElementReference _input;
@@ -83,16 +88,21 @@
     [JSInvokable]
     public async Task Open()
     {
-        if (Workspace.ActiveConnectionId is not { } connectionId)
-        {
-            return;
-        }
-
         _open = true;
         _query = string.Empty;
         _selected = 0;
-        _loading = true;
         _focusPending = true;
+
+        if (Workspace.ActiveConnectionId is not { } connectionId)
+        {
+            _noConnection = true;
+            _index = [];
+            StateHasChanged();
+            return;
+        }
+
+        _noConnection = false;
+        _loading = true;
         StateHasChanged();
 
         _index = await Workspace.GetObjectIndexAsync(connectionId, CancellationToken.None);

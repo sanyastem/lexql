@@ -1,7 +1,7 @@
 <li class="tree-node">
     <span class="tree-label @(Node.HasChildren ? "expandable" : null) @(CanOpenData ? "data" : null)"
-          @onclick="ToggleAsync" @ondblclick="OpenDataAsync">
-        <span class="tree-chevron">@(Node.HasChildren ? (_expanded ? "▾" : "▸") : null)</span>
+          @onclick="OnLabelClickAsync" @ondblclick="OpenDataAsync">
+        <span class="tree-chevron" @onclick:stopPropagation="true" @onclick="ToggleAsync">@(Node.HasChildren ? (_expanded ? "▾" : "▸") : null)</span>
         <span class="tree-icon @(IsAccent ? "accent" : null)"><TreeIcon Kind="@IconName" /></span>
         <span class="tree-name">@Node.Name</span>
         @if (_loading)
@@ -13,7 +13,7 @@
     @if (_expanded && _children is not null)
     {
         <ul class="tree-children">
-            @foreach (var child in _children.Where(MatchesFilter))
+            @foreach (var child in _children)
             {
                 <ObjectTreeNode Node="child" Explorer="Explorer" Namespace="@ChildNamespace" OnOpenData="OnOpenData" />
             }
@@ -33,24 +33,6 @@
 
     [Parameter]
     public EventCallback<ObjectRef> OnOpenData { get; set; }
-
-    [CascadingParameter(Name = "TreeFilter")]
-    public string? TreeFilter { get; set; }
-
-    private bool MatchesFilter(DatabaseObjectNode child)
-    {
-        if (string.IsNullOrWhiteSpace(TreeFilter))
-        {
-            return true;
-        }
-
-        if (child.Kind is DatabaseObjectKind.Namespace or DatabaseObjectKind.Other)
-        {
-            return true;
-        }
-
-        return child.Name.Contains(TreeFilter, StringComparison.OrdinalIgnoreCase);
-    }
 
     private string? ChildNamespace =>
         Node.Kind == DatabaseObjectKind.Namespace ? Node.Name : Namespace;
@@ -96,6 +78,8 @@
             }
         }
     }
+
+    private Task OnLabelClickAsync() => CanOpenData ? Task.CompletedTask : ToggleAsync();
 
     private async Task OpenDataAsync()
     {

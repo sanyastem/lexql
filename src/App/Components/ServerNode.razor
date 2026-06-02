@@ -20,15 +20,45 @@
         }
     </div>
 
-    @if (_expanded && Connection is { } c)
+    @if (Connection is { } c)
     {
-        <ul class="tree-root">
-            @foreach (var root in c.Roots)
-            {
-                <ObjectTreeNode @key="@($"{root.Id}:{c.RefreshToken}")" Node="root" Explorer="c.Connection.ObjectExplorer"
-                                OnOpenData="t => OpenDataAsync(c, t)" />
-            }
-        </ul>
+        @if (Filtering)
+        {
+            <ul class="tree-root filter-results">
+                @if (_indexLoading)
+                {
+                    <li class="filter-note">@L["tree.loading"]</li>
+                }
+                else if (!Matches(c).Any())
+                {
+                    <li class="filter-note">@L["palette.empty"]</li>
+                }
+                else
+                {
+                    @foreach (var m in Matches(c))
+                    {
+                        <li class="tree-node">
+                            <span class="tree-label data" @onclick="() => OpenDataAsync(c, new ObjectRef(m.Schema, m.Name))">
+                                <span class="tree-chevron"></span>
+                                <span class="tree-icon @(m.IsView ? null : "accent")"><TreeIcon Kind="@(m.IsView ? "view" : "container")" /></span>
+                                <span class="tree-name">@m.Name</span>
+                                <span class="filter-schema">@m.Schema</span>
+                            </span>
+                        </li>
+                    }
+                }
+            </ul>
+        }
+        else if (_expanded)
+        {
+            <ul class="tree-root">
+                @foreach (var root in c.Roots)
+                {
+                    <ObjectTreeNode @key="@($"{root.Id}:{c.RefreshToken}")" Node="root" Explorer="c.Connection.ObjectExplorer"
+                                    OnOpenData="t => OpenDataAsync(c, t)" />
+                }
+            </ul>
+        }
     }
 
     @if (_error is not null)
@@ -248,5 +278,47 @@
     {
         Workspace.SetActiveConnection(connection.Id);
         Workspace.OpenTableData(connection.Id, target.Namespace, target.Name);
+    }
+
+    private bool _indexLoading;
+    private string? _indexKey;
+    private IReadOnlyList<ObjectIndexItem> _index = [];
+
+    private bool Filtering => !string.IsNullOrWhiteSpace(Workspace.TreeFilter);
+
+    private IEnumerable<ObjectIndexItem> Matches(ServerConnection connection)
+    {
+        var filter = Workspace.TreeFilter;
+        return _index
+            .Where(o => o.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                        || o.Schema.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .Take(100);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Filtering || _indexLoading || Connection is not { } c)
+        {
+            return;
+        }
+
+        var key = $"{c.Id}:{c.RefreshToken}";
+        if (_indexKey == key)
+        {
+            return;
+        }
+
+        _indexLoading = true;
+        _indexKey = key;
+        try
+        {
+            _index = await Workspace.GetObjectIndexAsync(c.Id, CancellationToken.None);
+        }
+        finally
+        {
+            _indexLoading = false;
+        }
+
+        StateHasChanged();
     }
 }
