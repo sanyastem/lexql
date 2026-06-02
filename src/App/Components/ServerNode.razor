@@ -22,7 +22,7 @@
 
     @if (Connection is { } c)
     {
-        @if (Filtering)
+        @if (GlobalFilter && IsActive)
         {
             <ul class="tree-root filter-results">
                 @if (_indexLoading)
@@ -49,7 +49,7 @@
                 }
             </ul>
         }
-        else if (_expanded)
+        else if (!GlobalFilter && _expanded)
         {
             <ul class="tree-root">
                 @foreach (var root in c.Roots)
@@ -284,7 +284,7 @@
     private string? _indexKey;
     private IReadOnlyList<ObjectIndexItem> _index = [];
 
-    private bool Filtering => !string.IsNullOrWhiteSpace(Workspace.TreeFilter);
+    private bool GlobalFilter => !string.IsNullOrWhiteSpace(Workspace.TreeFilter);
 
     private IEnumerable<ObjectIndexItem> Matches(ServerConnection connection)
     {
@@ -297,7 +297,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!Filtering || _indexLoading || Connection is not { } c)
+        if (!GlobalFilter || !IsActive || _indexLoading || Connection is not { } c)
         {
             return;
         }
