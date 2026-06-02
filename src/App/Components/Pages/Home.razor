@@ -22,6 +22,7 @@
             await Localization.InitializeAsync();
             await History.InitializeAsync(CancellationToken.None);
             await Workspace.InitializeAsync();
+            _ready = true;
         }
         catch (Exception ex)
         {
@@ -33,6 +34,8 @@
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
     private IJSObjectReference? _splitters;
+    private bool _ready;
+    private bool _splashHidden;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -40,6 +43,12 @@
         {
             _splitters ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/splitter.js");
             await _splitters.InvokeVoidAsync("init");
+
+            if (_ready && !_splashHidden)
+            {
+                _splashHidden = true;
+                await JS.InvokeVoidAsync("lexqlSplash.hide");
+            }
         }
         catch (Exception)
         {
