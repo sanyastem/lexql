@@ -27,45 +27,15 @@ public static class AdoResultReader
 
     private static async Task<IResultSet> ReadResultSetAsync(DbDataReader reader, int? rowLimit, CancellationToken ct)
     {
-        var fieldCount = reader.FieldCount;
-        var fields = new FieldDescriptor[fieldCount];
-        var kinds = new CellKind[fieldCount];
-        var nameIndex = new Dictionary<string, int>(fieldCount, StringComparer.OrdinalIgnoreCase);
-
-        for (var i = 0; i < fieldCount; i++)
-        {
-            var kind = AdoCellMapper.MapKind(reader.GetFieldType(i));
-            var name = reader.GetName(i);
-            kinds[i] = kind;
-            fields[i] = new FieldDescriptor(name, kind, SafeTypeName(reader, i));
-            nameIndex[name] = i;
-        }
+        var schema = AdoSchemaReader.Read(reader);
 
         var records = new List<IRecord>();
         while ((rowLimit is null || records.Count < rowLimit) && await reader.ReadAsync(ct))
         {
-            var values = new CellValue[fieldCount];
-            for (var i = 0; i < fieldCount; i++)
-            {
-                var raw = reader.IsDBNull(i) ? null : reader.GetValue(i);
-                values[i] = AdoCellMapper.MapValue(raw, kinds[i]);
-            }
-
-            records.Add(new BufferedRecord(fields, values, nameIndex));
+            var values = AdoSchemaReader.ReadRow(reader, schema);
+            records.Add(new BufferedRecord(schema.Fields, values, schema.NameIndex));
         }
 
-        return new BufferedResultSet(fields, records);
-    }
-
-    private static string? SafeTypeName(DbDataReader reader, int ordinal)
-    {
-        try
-        {
-            return reader.GetDataTypeName(ordinal);
-        }
-        catch (Exception ex) when (ex is NotSupportedException or InvalidOperationException)
-        {
-            return null;
-        }
+        return new BufferedResultSet(schema.Fields, records);
     }
 }

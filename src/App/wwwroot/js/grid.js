@@ -33,11 +33,16 @@ export function renderGrid(element, columns, rows, options) {
     const state = {
         columns,
         keyIndexes,
+        editable,
         updates: new Map(),
         inserts: new Map(),
         deletes: [],
         originalKeys: new Map(),
         nextInsertId: -1,
+        nextRowId: rows.length,
+        hasMore: !!options.hasMore,
+        loadingMore: false,
+        dotnetRef: options.dotnetRef || null,
     };
 
     const table = new Tabulator(element, {
@@ -55,6 +60,13 @@ export function renderGrid(element, columns, rows, options) {
         table.on("cellClick", (e, cell) => {
             const value = cell.getValue();
             dotnetRef.invokeMethodAsync("OnCellClicked", value === null || value === undefined ? null : String(value));
+        });
+
+        table.on("tableBuilt", () => {
+            const holder = element.querySelector(".tabulator-tableholder");
+            if (holder) {
+                holder.addEventListener("scroll", () => maybeLoadMore(element, holder));
+            }
         });
     }
 
@@ -76,6 +88,47 @@ export function renderGrid(element, columns, rows, options) {
 
     tables.set(element, table);
     states.set(element, state);
+}
+
+function maybeLoadMore(element, holder) {
+    const state = states.get(element);
+    if (!state || !state.hasMore || state.loadingMore || !state.dotnetRef) {
+        return;
+    }
+
+    if (holder.scrollTop + holder.clientHeight >= holder.scrollHeight - 120) {
+        state.loadingMore = true;
+        state.dotnetRef.invokeMethodAsync("OnLoadMoreRequested");
+    }
+}
+
+export function appendRows(element, rows) {
+    const table = tables.get(element);
+    const state = states.get(element);
+    if (!table || !state) {
+        return;
+    }
+
+    const data = rows.map((row) => {
+        const record = { _i: state.nextRowId++ };
+        row.forEach((value, i) => {
+            record[`c${i}`] = value;
+        });
+        if (state.editable) {
+            state.originalKeys.set(record._i, keyMap(state, record));
+        }
+        return record;
+    });
+
+    state.loadingMore = false;
+    return table.addData(data);
+}
+
+export function setHasMore(element, value) {
+    const state = states.get(element);
+    if (state) {
+        state.hasMore = !!value;
+    }
 }
 
 export function addRow(element) {

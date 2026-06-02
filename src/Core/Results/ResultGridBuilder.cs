@@ -25,6 +25,20 @@ public static class ResultGridBuilder
         return new ResultGridModel(columns, rows);
     }
 
+    public static List<ResultGridColumn> BuildColumns(IReadOnlyList<FieldDescriptor> fields) =>
+        fields.Select(ToColumn).ToList();
+
+    public static object?[] RowOf(IRecord record, int columnCount)
+    {
+        var cells = new object?[columnCount];
+        for (var i = 0; i < columnCount; i++)
+        {
+            cells[i] = ToCell(record[i]);
+        }
+
+        return cells;
+    }
+
     private static ResultGridColumn ToColumn(FieldDescriptor field) =>
         new(field.Name, field.NativeType ?? field.Kind.ToString(), IsNumeric(field.Kind));
 

@@ -1,3 +1,4 @@
+using Lexql.Core.Abstractions;
 using Lexql.Core.Relational.Sql;
 using Lexql.Core.Results;
 
@@ -24,6 +25,10 @@ public sealed class QueryTab
     public int RowLimit { get; set; } = 1000;
 
     public ResultGridModel? Grid { get; set; }
+
+    public IQueryCursor? Cursor { get; set; }
+
+    public bool HasMore { get; set; }
 
     public EditabilityInfo? Editability { get; set; }
 

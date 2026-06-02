@@ -18,15 +18,19 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
     private readonly ISqlCompletionProvider _completion;
     private readonly IServerInfoProvider _serverInfo;
 
+    private readonly IPagedQueryExecutor _pagedExecutor;
+
     public MySqlDatabaseConnection(
         IDatabaseProvider provider,
         MySqlConnection connection,
+        string connectionString,
         bool isReadOnly,
         MySqlQueryExecutorOptions options,
         IAsyncDisposable? tunnel = null)
     {
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(connection);
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         ArgumentNullException.ThrowIfNull(options);
 
         Provider = provider;
@@ -40,6 +44,7 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
         _serverInfo = new MySqlServerInfo(connection);
         ObjectExplorer = new RelationalObjectExplorer(_catalog, _schemaReader);
         QueryExecutor = new MySqlQueryExecutor(connection, options);
+        _pagedExecutor = new MySqlPagedQueryExecutor(connectionString, options);
     }
 
     public IDatabaseProvider Provider { get; }
@@ -56,6 +61,7 @@ public sealed class MySqlDatabaseConnection : IDatabaseConnection
     public TService? GetService<TService>() where TService : class =>
         ObjectExplorer as TService
         ?? QueryExecutor as TService
+        ?? _pagedExecutor as TService
         ?? _schemaReader as TService
         ?? _catalog as TService
         ?? _completion as TService

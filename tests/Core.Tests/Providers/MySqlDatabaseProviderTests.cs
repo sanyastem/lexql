@@ -41,14 +41,16 @@ public class MySqlDatabaseProviderTests
     [Fact]
     public async Task GetService_RoutesDeclaredCapabilityServices()
     {
-        await using var connection = new MySqlConnection("Server=localhost;User Id=root");
+        const string connectionString = "Server=localhost;User Id=root";
+        await using var connection = new MySqlConnection(connectionString);
         await using var session = new MySqlDatabaseConnection(
-            _provider, connection, isReadOnly: false, new MySqlQueryExecutorOptions());
+            _provider, connection, connectionString, isReadOnly: false, new MySqlQueryExecutorOptions());
 
         Assert.NotNull(session.ObjectExplorer);
         Assert.NotNull(session.QueryExecutor);
         Assert.NotNull(session.GetService<IObjectExplorer>());
         Assert.NotNull(session.GetService<IQueryExecutor>());
+        Assert.NotNull(session.GetService<IPagedQueryExecutor>());
         Assert.NotNull(session.GetService<IRelationalSchemaReader>());
         Assert.NotNull(session.GetService<IRelationalCatalog>());
     }

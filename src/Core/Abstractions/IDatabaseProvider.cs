@@ -162,6 +162,24 @@ public interface IQueryExecutor
     Task<QueryExecution> ExecuteAsync(QueryRequest request, CancellationToken ct);
 }
 
+/// <summary>Optional service: run a query and stream its result in bounded pages
+/// instead of buffering everything in memory (T24). The provider opens a cursor;
+/// the consumer pulls pages on demand and disposes the cursor when done.</summary>
+public interface IPagedQueryExecutor
+{
+    Task<IQueryCursor> OpenAsync(QueryRequest request, CancellationToken ct);
+}
+
+public interface IQueryCursor : IAsyncDisposable
+{
+    IReadOnlyList<FieldDescriptor> Fields { get; }
+    long? AffectedCount { get; }
+    IReadOnlyList<DiagnosticMessage> Messages { get; }
+    Task<ResultPage> FetchAsync(int maxRows, CancellationToken ct);
+}
+
+public sealed record ResultPage(IReadOnlyList<IRecord> Records, bool HasMore);
+
 public sealed class QueryExecution
 {
     public required IReadOnlyList<IResultSet> ResultSets { get; init; } // batch → many (relational); usually 1 (Mongo)

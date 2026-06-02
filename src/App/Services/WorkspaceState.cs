@@ -219,6 +219,7 @@ public sealed class WorkspaceState
         foreach (var tab in Tabs.Where(t => t.ConnectionId == connectionId))
         {
             tab.ConnectionId = null;
+            DisposeCursor(tab);
         }
 
         if (ActiveConnectionId == connectionId)
@@ -293,6 +294,7 @@ public sealed class WorkspaceState
             return;
         }
 
+        DisposeCursor(tab);
         Tabs.Remove(tab);
         if (ActiveTabId == tabId)
         {
@@ -305,7 +307,14 @@ public sealed class WorkspaceState
     public void CloseTabs(IEnumerable<string> ids)
     {
         var wanted = ids.ToHashSet();
-        Tabs.RemoveAll(t => wanted.Contains(t.Id) && !HasUnsavedWork(t));
+        bool ShouldClose(QueryTab t) => wanted.Contains(t.Id) && !HasUnsavedWork(t);
+
+        foreach (var tab in Tabs.Where(ShouldClose))
+        {
+            DisposeCursor(tab);
+        }
+
+        Tabs.RemoveAll(ShouldClose);
 
         if (ActiveTabId is { } active && Tabs.All(t => t.Id != active))
         {
@@ -325,6 +334,17 @@ public sealed class WorkspaceState
     }
 
     private static bool HasUnsavedWork(QueryTab tab) => tab.Dirty && !string.IsNullOrWhiteSpace(tab.Sql);
+
+    private static void DisposeCursor(QueryTab tab)
+    {
+        var cursor = tab.Cursor;
+        tab.Cursor = null;
+        tab.HasMore = false;
+        if (cursor is not null)
+        {
+            _ = cursor.DisposeAsync();
+        }
+    }
 
     private void Notify() => Changed?.Invoke();
 }

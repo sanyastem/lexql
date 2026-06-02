@@ -1,3 +1,4 @@
+@using System.Diagnostics
 @using System.IO
 @using Lexql.Core.History
 @using Lexql.Core.Relational
@@ -154,11 +155,13 @@
                     <div class="result-scroll">
                         @if (active.Editability is { IsEditable: true } edit)
                         {
-                            <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="edit.KeyColumns" OnCellSelected="_onCellSelected" />
+                            <ResultGrid @ref="_grid" Model="active.Grid" Editable="true" KeyColumns="edit.KeyColumns"
+                                        OnCellSelected="_onCellSelected" HasMore="active.HasMore" OnLoadMore="_onLoadMore" />
                         }
                         else
                         {
-                            <ResultGrid Model="active.Grid" OnCellSelected="_onCellSelected" />
+                            <ResultGrid @ref="_grid" Model="active.Grid"
+                                        OnCellSelected="_onCellSelected" HasMore="active.HasMore" OnLoadMore="_onLoadMore" />
                         }
                     </div>
                     @if (_cellSelected)
@@ -312,6 +315,7 @@
     private bool _cellSelected;
     private string _cellValue = string.Empty;
     private EventCallback<string?> _onCellSelected;
+    private EventCallback _onLoadMore;
 
     private void ShowCellValue(string? value)
     {
@@ -384,6 +388,7 @@
         Workspace.Changed += OnChanged;
         L.Changed += OnChanged;
         _onCellSelected = EventCallback.Factory.Create<string?>(this, ShowCellValue);
+        _onLoadMore = EventCallback.Factory.Create(this, LoadMoreAsync);
     }
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
@@ -848,6 +853,7 @@
         _cellSelected = false;
         tab.Grid = null;
         tab.Editability = null;
+        await DisposeCursorAsync(tab);
         Log(tab, OutputKind.Info, string.Format(L["output.executing"], SingleLine(sql)));
         _cts = new CancellationTokenSource();
         try
@@ -858,32 +864,15 @@
                 : $"USE `{targetDatabase.Replace("`", "``")}`;\n{sql}";
 
             var request = new QueryRequest(text, RowLimit: tab.RowLimit);
-            var execution = await connection.Connection.QueryExecutor.ExecuteAsync(request, _cts.Token);
+            var paged = connection.Connection.GetService<IPagedQueryExecutor>();
 
-            foreach (var message in execution.Messages)
+            if (paged is not null)
             {
-                if (message.Severity == DiagnosticSeverity.Error)
-                {
-                    Log(tab, OutputKind.Error, L["output.error"], detail: message.Text);
-                    _errorsOpen = true;
-                }
-                else
-                {
-                    Log(tab, message.Severity == DiagnosticSeverity.Warning ? OutputKind.Warning : OutputKind.Info, message.Text);
-                }
-            }
-
-            var elapsed = execution.Elapsed.TotalMilliseconds;
-            var resultSet = execution.ResultSets.FirstOrDefault();
-            if (resultSet is not null)
-            {
-                tab.Grid = await ResultGridBuilder.BuildAsync(resultSet, _cts.Token);
-                Log(tab, OutputKind.Success, string.Format(L["output.rows"], tab.Grid.Rows.Count), elapsed);
-                tab.Editability = await AnalyzeEditabilityAsync(connection, targetDatabase, sql, tab.Grid);
+                await RunPagedAsync(tab, connection, paged, request, sql, targetDatabase);
             }
             else
             {
-                Log(tab, OutputKind.Success, string.Format(L["output.affected"], execution.AffectedCount ?? 0), elapsed);
+                await RunBufferedAsync(tab, connection, request, sql, targetDatabase);
             }
 
             await History.AddHistoryAsync(sql, connection.Name, true, CancellationToken.None);
@@ -903,6 +892,147 @@
             _running = false;
             _cts?.Dispose();
             _cts = null;
+        }
+    }
+
+    private async Task RunPagedAsync(
+        QueryTab tab, ServerConnection connection, IPagedQueryExecutor paged,
+        QueryRequest request, string sql, string? targetDatabase)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var cursor = await paged.OpenAsync(request, _cts!.Token);
+        try
+        {
+            LogMessages(tab, cursor.Messages);
+
+            if (cursor.Fields.Count == 0)
+            {
+                stopwatch.Stop();
+                Log(tab, OutputKind.Success, string.Format(L["output.affected"], cursor.AffectedCount ?? 0), stopwatch.Elapsed.TotalMilliseconds);
+                await cursor.DisposeAsync();
+                return;
+            }
+
+            var page = await cursor.FetchAsync(tab.RowLimit, _cts.Token);
+            stopwatch.Stop();
+
+            var columns = ResultGridBuilder.BuildColumns(cursor.Fields);
+            var rows = new List<object?[]>(page.Records.Count);
+            foreach (var record in page.Records)
+            {
+                rows.Add(ResultGridBuilder.RowOf(record, columns.Count));
+            }
+
+            tab.Grid = new ResultGridModel(columns, rows);
+            tab.HasMore = page.HasMore;
+            if (page.HasMore)
+            {
+                tab.Cursor = cursor;
+            }
+            else
+            {
+                await cursor.DisposeAsync();
+            }
+
+            Log(tab, OutputKind.Success, string.Format(L["output.rows"], rows.Count), stopwatch.Elapsed.TotalMilliseconds);
+            tab.Editability = await AnalyzeEditabilityAsync(connection, targetDatabase, sql, tab.Grid);
+        }
+        catch
+        {
+            await cursor.DisposeAsync();
+            tab.Cursor = null;
+            tab.HasMore = false;
+            throw;
+        }
+    }
+
+    private async Task RunBufferedAsync(
+        QueryTab tab, ServerConnection connection, QueryRequest request, string sql, string? targetDatabase)
+    {
+        var execution = await connection.Connection.QueryExecutor.ExecuteAsync(request, _cts!.Token);
+        LogMessages(tab, execution.Messages);
+
+        var elapsed = execution.Elapsed.TotalMilliseconds;
+        var resultSet = execution.ResultSets.FirstOrDefault();
+        if (resultSet is not null)
+        {
+            tab.Grid = await ResultGridBuilder.BuildAsync(resultSet, _cts.Token);
+            Log(tab, OutputKind.Success, string.Format(L["output.rows"], tab.Grid.Rows.Count), elapsed);
+            tab.Editability = await AnalyzeEditabilityAsync(connection, targetDatabase, sql, tab.Grid);
+        }
+        else
+        {
+            Log(tab, OutputKind.Success, string.Format(L["output.affected"], execution.AffectedCount ?? 0), elapsed);
+        }
+    }
+
+    private void LogMessages(QueryTab tab, IReadOnlyList<DiagnosticMessage> messages)
+    {
+        foreach (var message in messages)
+        {
+            if (message.Severity == DiagnosticSeverity.Error)
+            {
+                Log(tab, OutputKind.Error, L["output.error"], detail: message.Text);
+                _errorsOpen = true;
+            }
+            else
+            {
+                Log(tab, message.Severity == DiagnosticSeverity.Warning ? OutputKind.Warning : OutputKind.Info, message.Text);
+            }
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        if (Workspace.ActiveTab is not { Cursor: { } cursor, Grid: { } grid } tab)
+        {
+            return;
+        }
+
+        try
+        {
+            var page = await cursor.FetchAsync(tab.RowLimit, CancellationToken.None);
+            if (page.Records.Count > 0 && grid.Rows is List<object?[]> rowList)
+            {
+                var columnCount = grid.Columns.Count;
+                var newRows = page.Records.Select(r => ResultGridBuilder.RowOf(r, columnCount)).ToList();
+                rowList.AddRange(newRows);
+                if (_grid is not null)
+                {
+                    await _grid.AppendRowsAsync(newRows);
+                }
+            }
+
+            tab.HasMore = page.HasMore;
+            if (!page.HasMore)
+            {
+                await cursor.DisposeAsync();
+                tab.Cursor = null;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Log(tab, OutputKind.Error, L["output.error"], detail: ex.Message);
+            _errorsOpen = true;
+            await DisposeCursorAsync(tab);
+        }
+
+        StateHasChanged();
+    }
+
+    private static async Task DisposeCursorAsync(QueryTab tab)
+    {
+        if (tab.Cursor is { } cursor)
+        {
+            tab.Cursor = null;
+            tab.HasMore = false;
+            try
+            {
+                await cursor.DisposeAsync();
+            }
+            catch (Exception)
+            {
+            }
         }
     }
 

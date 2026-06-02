@@ -30,13 +30,14 @@ public sealed class MySqlDatabaseProvider : IDatabaseProvider
             tunnel = await SshTunnel.OpenAsync(sshSettings, settings.Host, settings.Port, ct);
         }
 
-        var connection = new MySqlConnection(BuildConnectionString(settings, tunnel));
+        var connectionString = BuildConnectionString(settings, tunnel);
+        var connection = new MySqlConnection(connectionString);
         try
         {
             await connection.OpenAsync(ct);
             var options = new MySqlQueryExecutorOptions(
                 DefaultRowLimit: profile.DefaultRowLimit, ReadOnly: profile.ReadOnly);
-            return new MySqlDatabaseConnection(this, connection, profile.ReadOnly, options, tunnel);
+            return new MySqlDatabaseConnection(this, connection, connectionString, profile.ReadOnly, options, tunnel);
         }
         catch
         {
